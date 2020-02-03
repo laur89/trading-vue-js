@@ -385,7 +385,6 @@ function GridMaker(id, params, master_grid = null) {
             if (y > height) continue
             self.ys.push([y, Utils.strip(y$)])
         }
-
     }
 
     function grid_y_log() {
