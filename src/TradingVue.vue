@@ -187,9 +187,10 @@ export default {
     computed: {
         // Copy a subset of TradingVue props
         chart_props() {
-            let offset = this.$props.toolbar ?
+            const offset = this.$props.toolbar ?
                 this.chart_config.TOOLBAR : 0
-            let chart_props = {
+
+            const chart_props = {
                 title_txt: this.$props.titleTxt,
                 overlays: this.$props.overlays.concat(this.mod_ovs),
                 data: this.decubed,
@@ -215,7 +216,8 @@ export default {
             )
         },
         decubed() {
-            let data = this.$props.data
+            const data = this.$props.data
+
             if (data.data !== undefined) {
                 // DataCube detected
                 data.init_tvjs(this)
@@ -257,7 +259,8 @@ export default {
         // TODO: reset extensions?
         resetChart(resetRange = true) {
             this.reset++
-            let range = this.getRange()
+            const range = this.getRange()
+
             if (!resetRange && range[0] && range[1]) {
                 this.$nextTick(() => this.setRange(...range))
             }
@@ -317,7 +320,8 @@ export default {
             } else {
                 this.$emit(d.event)
             }
-            let data = this.$props.data
+
+            const data = this.$props.data
             let ctrl = this.controllers.length !== 0
             if (ctrl) this.pre_dc(d)
             if (data.tv) {

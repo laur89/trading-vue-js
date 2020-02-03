@@ -38,14 +38,13 @@ export default class CandleExt {
 
             this.ctx.fillStyle = body_color
             // TODO: Move common calculations to layout.js
-            let s = green ? 1 : -1
+            const s = green ? 1 : -1
             this.ctx.fillRect(
                 Math.floor(data.x - hw -1),
                 data.c,
                 Math.floor(hw * 2 + 1),
                 s * Math.max(h, max_h),
             )
-
         } else {
 
             this.ctx.strokeStyle = body_color
@@ -62,9 +61,6 @@ export default class CandleExt {
             )
 
             this.ctx.stroke()
-
         }
-
     }
-
 }

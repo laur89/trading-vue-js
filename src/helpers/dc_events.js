@@ -56,7 +56,8 @@ export default class DCEvents {
     // Called when overalay/tv emits 'custom-event'
     on_custom_event(event, args) {
         switch(event) {
-            case 'register-tools': this.register_tools(args)
+            case 'register-tools':
+                this.register_tools(args)
                 break
             case 'exec-script': this.exec_script(args)
                 break
@@ -77,23 +78,27 @@ export default class DCEvents {
                 break
             case 'grid-mousedown': this.grid_mousedown(args)
                 break
-            case 'drawing-mode-off': this.drawing_mode_off()
+            case 'drawing-mode-off':
+                this.drawing_mode_off()
                 break
-            case 'change-settings': this.change_settings(args)
+            case 'change-settings':
+                this.change_settings(args)
                 break
             case 'range-changed': this.scripts_onrange(...args)
                 break
-            case 'scroll-lock': this.on_scroll_lock(args[0])
+            case 'scroll-lock':
+                this.on_scroll_lock(args[0])
                 break
-            case 'object-selected': this.object_selected(args)
+            case 'object-selected':
+                this.object_selected(args)
                 break
-            case 'remove-tool': this.system_tool('Remove')
+            case 'remove-tool':
+                this.system_tool('Remove')
                 break
-            case 'before-destroy': this.before_destroy()
+            case 'before-destroy':
+                this.before_destroy()
                 break
-
         }
-
     }
 
     // Triggered when one or multiple settings are changed
@@ -144,25 +149,26 @@ export default class DCEvents {
 
     // Combine all tools and their mods
     register_tools(tools) {
-        let preset = {}
-        for (var tool of this.data.tools || []) {
+        const preset = {}
+        for (const tool of this.data.tools || []) {
              preset[tool.type] = tool
              delete tool.type
         }
         this.tv.$set(this.data, 'tools', [])
-        let list = [{
+        const list = [{
             type: 'Cursor', icon: Icons['cursor.png']
         }]
-        for (var tool of tools) {
-            var proto = Object.assign({}, tool.info)
-            let type = tool.info.type || 'Default'
+        for (const tool of tools) {
+            const proto = Object.assign({}, tool.info)
+            const type = tool.info.type || 'Default'
             proto.type = `${tool.use_for}:${type}`
             this.merge_presets(proto, preset[tool.use_for])
             this.merge_presets(proto, preset[proto.type])
             delete proto.mods
             list.push(proto)
-            for (var mod in tool.info.mods) {
-                var mp = Object.assign({}, proto)
+
+            for (const mod in tool.info.mods) {
+                let mp = Object.assign({}, proto)
                 mp = Object.assign(mp, tool.info.mods[mod])
                 mp.type = `${tool.use_for}:${mod}`
                 this.merge_presets(mp, preset[tool.use_for])
@@ -170,6 +176,7 @@ export default class DCEvents {
                 list.push(mp)
             }
         }
+
         this.tv.$set(this.data, 'tools', list)
         this.tv.$set(this.data, 'tool', 'Cursor')
     }
@@ -300,7 +307,8 @@ export default class DCEvents {
 
     merge_presets(proto, preset) {
         if (!preset) return
-        for (var k in preset) {
+
+        for (const k in preset) {
             if (k === 'settings') {
                 Object.assign(proto[k], preset[k])
             } else {
@@ -345,20 +353,20 @@ export default class DCEvents {
     // Place a new tool
     build_tool(grid_id, type) {
 
-        let list = this.data.tools
+        const list = this.data.tools
         type = type || this.data.tool
-        let proto = list.find(x => x.type === type)
+        const proto = list.find(x => x.type === type)
         if (!proto) return
-        let sett = Object.assign({}, proto.settings || {})
-        let data = (proto.data || []).slice()
+        const sett = Object.assign({}, proto.settings || {})
+        const data = (proto.data || []).slice(0)
 
         if(!('legend' in sett)) sett.legend = false
         if(!('z-index' in sett)) sett['z-index'] = 100
         sett.$selected = true
         sett.$state = 'wip'
 
-        let side = grid_id ? 'offchart' : 'onchart'
-        let id = this.add(side, {
+        const side = grid_id ? 'offchart' : 'onchart'
+        const id = this.add(side, {
             name: proto.name,
             type: type.split(':')[0],
             settings: sett,
@@ -388,9 +396,10 @@ export default class DCEvents {
 
     // Apply new overlay settings
     change_settings(args) {
-        let settings = args[0]
+        const settings = args[0]
         delete settings.id
-        let grid_id = args[1]
+
+        //const grid_id = args[1]  // TODO var not used
         this.merge(`${args[3]}.settings`, settings)
     }
 
@@ -401,7 +410,7 @@ export default class DCEvents {
 
     // When new object is selected / unselected
     object_selected(args) {
-        var q = this.data.selected
+        let q = this.data.selected
         if (q) {
             // Check if current drawing is finished
             //let res = this.get_one(`${q}.settings`)
@@ -413,7 +422,7 @@ export default class DCEvents {
         }
         this.tv.$set(this.data, 'selected', null)
 
-        if (!args.length) return
+        if (args.length === 0) return
 
         this.tv.$set(this.data, 'selected', args[2])
         this.merge(`${args[2]}.settings`, {
@@ -428,6 +437,7 @@ export default class DCEvents {
         if (this.data.tools.find(x => x.type === type)) {
             return
         }
+
         this.data.tools.push({
             type, icon: Icons['trash.png']
         })
@@ -480,7 +490,7 @@ export default class DCEvents {
 
     // Clean-up unfinished business (tools)
     before_destroy() {
-        let f = x => !x.settings.$state ||
+        const f = x => !x.settings.$state ||
             x.settings.$state === 'finished'
         this.data.onchart = this.data.onchart
             .filter(f)

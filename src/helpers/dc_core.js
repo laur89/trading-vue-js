@@ -31,30 +31,29 @@ export default class DCCore extends DCEvents {
     }
 
     // Init Data Structure v1.1
-    init_data($root) {
+    init_data() {
 
-        if (!('chart' in this.data)) {
+        if (!this.data.hasOwnProperty('chart')) {
             this.tv.$set(this.data, 'chart', {
                 type: 'Candles',
                 data: this.data.ohlcv || []
             })
         }
 
-        if (!('onchart' in this.data)) {
+        if (!this.data.hasOwnProperty('onchart')) {
             this.tv.$set(this.data, 'onchart', [])
         }
 
-        if (!('offchart' in this.data)) {
+        if (!this.data.hasOwnProperty('offchart')) {
             this.tv.$set(this.data, 'offchart', [])
         }
 
         if (!this.data.chart.settings) {
-            this.tv.$set(this.data.chart,'settings', {})
+            this.tv.$set(this.data.chart, 'settings', {})
         }
 
         // Remove ohlcv cuz we have Data v1.1^
         delete this.data.ohlcv
-
         if (!('datasets' in this.data)) {
             this.tv.$set(this.data, 'datasets', [])
         }
@@ -69,40 +68,41 @@ export default class DCCore extends DCEvents {
 
     // Range change callback (called by TradingVue)
     // TODO: improve (reliablity + chunk with limited size)
-    async range_changed(range, tf, check=false) {
+    async range_changed(range, tf, check = false) {
 
-        if (!this.loader) return
-        if (!this.loading) {
-            let first = this.data.chart.data[0][0]
+        if (typeof this.loader !== 'function') return
+        if (!this.loading) {  // avoid simultaneous fetches
+            const first = this.data.chart.data[0][0]
             if (range[0] < first) {
                 this.loading = true
                 await Utils.pause(250) // Load bigger chunks
-                range = range.slice()  // copy
+                range = range.slice(0)  // copy
                 range[0] = Math.floor(range[0])
                 range[1] = Math.floor(first)
-                let prom = this.loader(range, tf, d => {
+                const prom = this.loader(range, tf, d => {
                     // Callback way
                     this.chunk_loaded(d)
                 })
-                if (prom && prom.then) {
+                if (prom !== null && typeof prom === 'object' && typeof prom.then === 'function') {
                     // Promise way
                     this.chunk_loaded(await prom)
                 }
             }
         }
+
         if (!check) this.last_chunk = [range, tf]
     }
 
     // A new chunk of data is loaded
-    // TODO: bulletproof fetch
+    // TODO: bulletproof fetch (eg we need to make sure this.loading
+    // flag is reset on exceptions)
     chunk_loaded(data) {
-
         // Updates only candlestick data, or
         if (Array.isArray(data)) {
             this.merge('chart.data', data)
         } else {
             // Bunch of overlays, including chart.data
-            for (var k in data) {
+            for (const k in data) {
                 this.merge(k, data[k])
             }
         }
@@ -112,40 +112,32 @@ export default class DCCore extends DCEvents {
             this.range_changed(...this.last_chunk, true)
             this.last_chunk = null
         }
-
     }
 
     // Update ids for all overlays
     update_ids() {
-        this.data.chart.id = `chart.${this.data.chart.type}`
-        var count = {}
-        // grid_id,layer_id => DC id mapping
-        this.gldc = {}, this.dcgl = {}
-        for (var ov of this.data.onchart) {
-            if (count[ov.type] === undefined) {
-                count[ov.type] = 0
+        const process = (ov, onOrOffChart) => {
+            if (!typeCounts.hasOwnProperty(ov.type)) {
+                typeCounts[ov.type] = 0
             }
-            let i = count[ov.type]++
-            ov.id = `onchart.${ov.type}${i}`
+            const i = typeCounts[ov.type]++
+            ov.id = `${onOrOffChart}.${ov.type}${i}`
             if (!ov.name) ov.name = ov.type + ` ${i}`
             if (!ov.settings) this.tv.$set(ov, 'settings', {})
-
-            // grid_id,layer_id => DC id mapping
-            this.gldc[`g0_${ov.type}_${i}`] = ov.id
-            this.dcgl[ov.id] = `g0_${ov.type}_${i}`
         }
-        count = {}
+
+        this.data.chart.id = `chart.${this.data.chart.type}`
+
+        let typeCounts = {}
+        for (const ov of this.data.onchart) {
+            process(ov, 'onchart')
+        }
+
+        typeCounts = {}  // reset
         let grids = [{}]
         let gid = 0
-        for (var ov of this.data.offchart) {
-            if (count[ov.type] === undefined) {
-                count[ov.type] = 0
-            }
-            let i = count[ov.type]++
-            ov.id = `offchart.${ov.type}${i}`
-            if (!ov.name) ov.name = ov.type + ` ${i}`
-            if (!ov.settings) this.tv.$set(ov, 'settings', {})
-
+        for (const ov of this.data.offchart) {
+            process(ov, 'offchart')
             // grid_id,layer_id => DC id mapping
             gid++
             let rgid = (ov.grid || {}).id || gid // real grid_id
@@ -226,15 +218,9 @@ export default class DCCore extends DCEvents {
                 k === 'candle' || k === 't') {
                 continue
             }
-            if (k.includes('datasets.')) {
-                this.agg.push(k, data[k], tf)
-                continue
-            }
-            if (!Array.isArray(data[k])) {
-                var val = [data[k]]
-            } else {
-                val = data[k]
-            }
+
+            const i = data[k]
+            const val = Array.isArray(i) ? i : [i]
             if (!k.includes('.data')) k += '.data'
             this.agg.push(k, [t, ...val], tf)
         }
@@ -246,10 +232,11 @@ export default class DCCore extends DCEvents {
     get_by_query(query, chuck) {
 
         let tuple = query.split('.')
+        let result;
 
         switch (tuple[0]) {
             case 'chart':
-                var result = this.chart_as_piv(tuple)
+                result = this.chart_as_piv(tuple)
                 break
             case 'onchart':
             case 'offchart':
@@ -264,22 +251,22 @@ export default class DCCore extends DCEvents {
                 }
                 break
             default:
-                /* Should get('.') return also the chart? */
+                /* TODO: Should get('.') return also the chart? */
                 /*let ch = this.chart_as_query([
                     'chart',
                     tuple[1]
                 ])*/
-                let on = this.query_search(query, [
+                const onChart = this.query_search(query, [
                     'onchart',
                     tuple[0],
                     tuple[1]
                 ])
-                let off = this.query_search(query, [
+                const offChart = this.query_search(query, [
                     'offchart',
                     tuple[0],
                     tuple[1]
                 ])
-                result = [/*ch[0],*/ ...on, ...off]
+                result = [/*ch[0],*/ ...onChart, ...offChart]
                 break
         }
         return result.filter(
@@ -287,13 +274,16 @@ export default class DCCore extends DCEvents {
     }
 
     chart_as_piv(tuple) {
-        let field = tuple[1]
-        if (field) return [{
-            p: this.data.chart,
-            i: field,
-            v: this.data.chart[field]
-        }]
-        else return [{
+        const field = tuple[1]
+        if (field) {
+            return [{
+                p: this.data.chart,
+                i: field,
+                v: this.data.chart[field]
+            }]
+        }
+
+        return [{
             p: this.data,
             i: 'chart',
             v: this.data.chart
@@ -302,9 +292,9 @@ export default class DCCore extends DCEvents {
 
     query_search(query, tuple) {
 
-        let side = tuple[0]
-        let path = tuple[1] || ''
-        let field = tuple[2]
+        const side = tuple[0]
+        const path = tuple[1] || ''
+        const field = tuple[2]
 
         let arr = this.data[side].filter(x => (
             x.id === query ||
@@ -337,7 +327,6 @@ export default class DCCore extends DCEvents {
         Object.assign(new_obj, obj.v)
         Object.assign(new_obj, data)
         this.tv.$set(obj.p, obj.i, new_obj)
-
     }
 
     // Merge overlapping time series
@@ -347,15 +336,15 @@ export default class DCCore extends DCEvents {
 
         if (!data.length) return obj.v
 
-        let r1 = [obj.v[0][0], obj.v[obj.v.length - 1][0]]
-        let r2 = [data[0][0],  data[data.length - 1][0]]
+        const r1 = [obj.v[0][0], obj.v[obj.v.length - 1][0]]
+        const r2 = [data[0][0],  data[data.length - 1][0]]
 
         // Overlap
-        let o = [Math.max(r1[0],r2[0]), Math.min(r1[1],r2[1])]
+        const o = [Math.max(r1[0], r2[0]), Math.min(r1[1], r2[1])]
 
         if (o[1] >= o[0]) {
 
-            let { od, d1, d2 } = this.ts_overlap(obj.v, data, o)
+            const { od, d1, d2 } = this.ts_overlap(obj.v, data, o)
 
             obj.v.splice(...d1)
             data.splice(...d2)
@@ -381,11 +370,9 @@ export default class DCCore extends DCEvents {
             this.tv.$set(
                 obj.p, obj.i, this.combine(obj.v, [], data)
             )
-
         }
 
         return obj.v
-
     }
 
     // TODO: review performance, move to worker
@@ -394,40 +381,40 @@ export default class DCCore extends DCEvents {
         const t1 = range[0]
         const t2 = range[1]
 
-        let ts = {} // timestamp map
+        const ts = {}  // timestamp map
+        const filter = x => x[0] >= t1 && x[0] <= t2
 
-        let a1 = arr1.filter(x => x[0] >= t1 && x[0] <= t2)
-        let a2 = arr2.filter(x => x[0] >= t1 && x[0] <= t2)
+        const a1 = arr1.filter(filter)
+        const a2 = arr2.filter(filter)
 
         // Indices of segments
-        let id11 = arr1.indexOf(a1[0])
-        let id12 = arr1.indexOf(a1[a1.length - 1])
-        let id21 = arr2.indexOf(a2[0])
-        let id22 = arr2.indexOf(a2[a2.length - 1])
+        const id11 = arr1.indexOf(a1[0])
+        const id12 = arr1.indexOf(a1[a1.length - 1])
+        const id21 = arr2.indexOf(a2[0])
+        const id22 = arr2.indexOf(a2[a2.length - 1])
 
-        for (var i = 0; i < a1.length; i++) {
+        for (let i = 0; i < a1.length; i++) {
             ts[a1[i][0]] = a1[i]
         }
 
-        for (var i = 0; i < a2.length; i++) {
+        for (let i = 0; i < a2.length; i++) {
             ts[a2[i][0]] = a2[i]
         }
 
-        let ts_sorted = Object.keys(ts).sort()
+        const ts_sorted = Object.keys(ts).sort()
 
         return {
             od: ts_sorted.map(x => ts[x]),
             d1: [id11, id12 - id11 + 1],
             d2: [id21, id22 - id21 + 1]
         }
-
     }
 
     // Combine parts together:
     // (destination, overlap, source)
     combine(dst, o, src) {
 
-        function last(arr) { return arr[arr.length - 1][0] }
+        const last = arr => arr[arr.length - 1][0]
 
         if (!dst.length) { dst = o; o = [] }
         if (!src.length) { src = o; o = [] }
@@ -458,9 +445,9 @@ export default class DCCore extends DCEvents {
             } else {
                 return src.concat(o, dst)
             }
-
-        } else {  return []  }
-
+        } else {
+            return []
+        }
     }
 
     // Simple data-point merge (faster)
