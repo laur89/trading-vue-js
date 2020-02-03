@@ -9,22 +9,22 @@ export default {
 
     add_zero(i) {
         if (i < 10) {
-            i = "0" + i;
+            i = '0' + i;
         }
         return i
     },
 
     // Start of the day (zero millisecond)
     day_start(t) {
-        let start = new Date(t)
+        const start = new Date(t)
         start.setHours(0,0,0,0)
         return start.getTime()
     },
 
     // Start of the month
     month_start(t) {
-        let date = new Date(t)
-        let start = new Date(
+        const date = new Date(t)
+        const start = new Date(
             date.getFullYear(),
             date.getMonth(), 1
         )
@@ -33,8 +33,7 @@ export default {
 
     // Start of the year
     year_start(t) {
-        let start = new Date(new Date(t).getFullYear(), 0, 1)
-        return start.getTime()
+        return new Date(new Date(t).getFullYear(), 0, 1).getTime()
     },
 
     // Nearest in array
@@ -42,14 +41,16 @@ export default {
         let dist = Infinity
         let val = null
         let index = -1
-        for (var i = 0; i < array.length; i++) {
-            var xi = array[i]
+
+        for (let i = 0; i < array.length; i++) {
+            const xi = array[i]
             if (Math.abs(xi - x) < dist) {
                 dist = Math.abs(xi - x)
                 val = xi
                 index = i
             }
         }
+
         return [index, val]
     },
 
@@ -75,19 +76,22 @@ export default {
 
     // Copy layout in reactive way
     copy_layout(obj, new_obj) {
-        for (var k in obj) {
-            if (Array.isArray(obj[k])) {
+        for (const k in obj) {
+            const o = obj[k];
+
+            if (Array.isArray(o)) {
                 // (some offchart indicators are added/removed)
                 // we need to update layout in a reactive way
-                if (obj[k].length !== new_obj[k].length) {
-                    this.overwrite(obj[k], new_obj[k])
+                if (o.length !== new_obj[k].length) {
+                    this.overwrite(o, new_obj[k])
                     continue
                 }
-                for (var m in obj[k]) {
-                    Object.assign(obj[k][m], new_obj[k][m])
+
+                for (const m in o) {
+                    Object.assign(o[m], new_obj[k][m])
                 }
             } else {
-                Object.assign(obj[k], new_obj[k])
+                Object.assign(o, new_obj[k])
             }
         }
     },
@@ -100,13 +104,17 @@ export default {
         return n.length !== p.length && n[0] !== p[0]
     },
 
-    // Detects candles interval
+    // Detects candles interval.
+    // Note this algorithm allows missing data-points, as those
+    // would cause interval to be larger than expected, and would
+    // be ignored; it's duplicate datapoints & negative deltas
+    // that cause issues.
     detect_interval(ohlcv) {
-        let len = Math.min(ohlcv.length - 1, 99)
+        const len = Math.min(ohlcv.length - 1, 99)
         let min = Infinity
         ohlcv.slice(0, len).forEach((x, i) => {
-            let d = ohlcv[i+1][0] - x[0]
-            if (d === d && d < min) min = d
+            const diff = ohlcv[i+1][0] - x[0]
+            if (diff < min) min = diff
         })
         return min
     },
@@ -126,10 +134,10 @@ export default {
 
     // Fast filter. Really fast, like 10X
     fast_filter(arr, t1, t2) {
-        if (!arr.length) return arr
+        if (arr.length === 0) return arr
+
         try {
-            var ia = new IndexedArray(arr, "0")
-            return ia.getRange(t1, t2)
+            return new IndexedArray(arr, '0').getRange(t1, t2)
         } catch(e) {
             // Something wrong with fancy slice lib
             // Fast fix: fallback to filter
@@ -139,15 +147,15 @@ export default {
         }
     },
 
-    now() { return (new Date()).getTime() },
+    now() { return new Date().getTime() },
 
     pause(delay) {
-        return new Promise((rs, rj) => setTimeout(rs, delay))
+        return new Promise((rs/*, rj*/) => setTimeout(rs, delay))
     },
 
     // Limit crazy wheel delta values
     smart_wheel(delta) {
-        let abs = Math.abs(delta)
+        const abs = Math.abs(delta)
         if (abs > 500) {
             return (200 + Math.log(abs)) * Math.sign(delta)
         }
