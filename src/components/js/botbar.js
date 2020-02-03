@@ -15,7 +15,6 @@ export default class Botbar {
         this.data = this.$p.sub
         this.range = this.$p.range
         this.layout = this.$p.layout
-
     }
 
     update() {
@@ -42,7 +41,7 @@ export default class Botbar {
         this.ctx.fillStyle = this.$p.colors.text
         this.ctx.beginPath()
 
-        for (var p of this.layout.botbar.xs) {
+        for (const p of this.layout.botbar.xs) {
 
             let lbl = this.format_date(p)
 
@@ -57,14 +56,12 @@ export default class Botbar {
             this.ctx.textAlign = 'center'
             this.ctx.fillText(lbl, p[0], 18)
             this.ctx.globalAlpha = 1
-
         }
 
         this.ctx.stroke()
         this.apply_shaders()
         if (this.$p.cursor.x && this.$p.cursor.t !== undefined)
             this.panel()
-
     }
 
     apply_shaders() {
@@ -81,22 +78,21 @@ export default class Botbar {
     }
 
     panel() {
-
-        let lbl = this.format_cursor_x()
+        const lbl = this.format_cursor_x()
         this.ctx.fillStyle = this.$p.colors.panel
 
-        let measure = this.ctx.measureText(lbl + '    ')
-        let panwidth = Math.floor(measure.width)
-        let cursor = this.$p.cursor.x
-        let x = Math.floor(cursor - panwidth * 0.5)
-        let y = - 0.5
-        let panheight = this.comp.config.PANHEIGHT
+        const measure = this.ctx.measureText(lbl + '    ')
+        const panwidth = Math.floor(measure.width)
+        const cursor = this.$p.cursor.x
+        const x = Math.floor(cursor - panwidth * 0.5)
+        const y = -0.5
+        const panheight = this.comp.config.PANHEIGHT
+
         this.ctx.fillRect(x, y, panwidth, panheight + 0.5)
 
         this.ctx.fillStyle = this.$p.colors.textHL
         this.ctx.textAlign = 'center'
         this.ctx.fillText(lbl, cursor, y + 16)
-
     }
 
     format_date(p) {
@@ -126,7 +122,6 @@ export default class Botbar {
     }
 
     format_cursor_x() {
-
         let t = this.$p.cursor.t
         t = this.grid_0.ti_map.i2t(t)
         //let ti = this.$p.interval
@@ -146,9 +141,14 @@ export default class Botbar {
             var mo = MONTHMAP[d.getUTCMonth()]
             var dd = '01'
         }
+
         if (ti <= WEEK) dd = d.getUTCDate()
         let date = `${dd} ${mo} ${yr}`
         let time = ''
+        // TODO: these 3 commented lines are from merge... delete?
+        //let time = '', date = ''
+        //if (dd !== undefined) date += dd;
+        //if (mo_yr !== undefined) date += date.length === 0 ? mo_yr : ' ' + mo_yr
 
         if (ti < DAY) {
             let h = Utils.add_zero(d.getUTCHours())
@@ -167,15 +167,13 @@ export default class Botbar {
     // Solution: manipulate the grid, skew it, you know
     lbl_highlight(t) {
 
-        let ti = this.$p.interval
+        const ti = this.$p.interval
 
         if (t === 0) return true
         if (Utils.month_start(t) === t) return true
         if (Utils.day_start(t) === t) return true
-        if (ti <= MINUTE15 && t % HOUR === 0) return true
 
-        return false
-
+        return ti <= MINUTE15 && t % HOUR === 0;
     }
 
     mousemove() { }

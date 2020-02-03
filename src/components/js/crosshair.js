@@ -3,14 +3,12 @@
 export default class Crosshair {
 
     constructor(comp) {
-
         this.comp = comp
         this.$p = comp.$props
         this.data = this.$p.sub
         this._visible = false
         this.locked = false
         this.layout = this.$p.layout
-
     }
 
     draw(ctx) {
@@ -39,7 +37,6 @@ export default class Crosshair {
         ctx.lineTo(this.x, this.layout.height)
         ctx.stroke()
         ctx.restore()
-
     }
 
     hide() {

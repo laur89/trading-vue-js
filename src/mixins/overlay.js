@@ -20,7 +20,7 @@ export default {
             }
         }
         // Main chart?
-        let main = this.$props.sub === this.$props.data
+        const main = this.$props.sub === this.$props.data
 
         this.meta_info()
 
@@ -71,9 +71,8 @@ export default {
         },
         meta_info() {
             /* override it (optional) */
-            let id = this.$props.id
-            console.warn(
-                `${id} meta_info() is req. for publishing`)
+            const id = this.$props.id
+            console.warn(`${id} meta_info() is req. for publishing`)
             console.warn(
             `Format: meta_info() {
                 author: 'Satoshi Smith',
