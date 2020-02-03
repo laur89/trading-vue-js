@@ -22,7 +22,6 @@ export default class CandleExt {
 
         const wick_color_sm = this.style.colorWickSm
 
-
         const w = Math.max(data.w, 1)
         const hw = Math.max(Math.floor(w * 0.5), 1)
         const h = Math.abs(data.o - data.c)
