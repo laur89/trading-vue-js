@@ -17,7 +17,7 @@
             v-bind:tv_id="id"
             v-bind:config="chart_config"
             v-on:custom-event="custom_event"
-            v-on:range-changed="range_changed"
+            v-on:range-changed="on_range_changed"
             v-on:legend-button-click="legend_button">
         </chart>
     </div>
@@ -221,7 +221,7 @@ export default {
             this.$emit('legend-button-click', event)
         },
         custom_event(d) {
-            if ('args' in d) {
+            if (d.hasOwnProperty('args')) {
                 this.$emit(d.event, ...d.args)
             } else {
                 this.$emit(d.event)
@@ -233,19 +233,24 @@ export default {
                 data.on_custom_event(d.event, d.args)
             }
         },
-        range_changed(r) {
+        on_range_changed(r) {
             this.$emit('range-changed', r)
         },
-        set_loader(dc) {
-            this.$refs.chart.$off('range-changed')
-            if (dc) {
+
+        // TODO: perhaps instead of going through vue component for
+        // event registration, consider using something like https://github.com/sandeepk01/vue-event-handler ?
+        register_range_changed_listener(onRangeChanged) {
+            if (onRangeChanged !== null) {
+                this.$refs.chart.$off('range-changed')
                 this.$refs.chart.$on('range-changed',
-                    // TODO: test if vue is ok if Promise here is rejected:
-                    r => new Promise((rs, rj) => rj(`rejected for range ${r}:(`))
-                    // r => dc.range_changed(
-                    //     r, this.$refs.chart.interval
-                    // )
+                    r => onRangeChanged(r, this.$refs.chart.interval)
                 )
+            }
+        },
+        register_cursor_lock_listener(onCursorLockChanged) {
+            if (onCursorLockChanged !== null) {
+                this.$refs.chart.$off('cursor-locked')
+                this.$refs.chart.$on('cursor-locked', onCursorLockChanged)
             }
         }
     }

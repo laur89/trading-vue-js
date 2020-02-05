@@ -180,6 +180,11 @@ export default {
             c += n.toString(16)
         }
         return c
-    }
+    },
 
+    // sanitize function argument;
+    // return the given arg if it's function, else null
+    get_fun_or_null(f) {
+        return typeof f === 'function' ? f : null
+    }
 }
