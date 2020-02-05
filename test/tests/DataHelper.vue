@@ -13,7 +13,7 @@ import Const from '../../src/stuff/constants.js'
 import DataCube from '../../src/helpers/datacube.js'
 import Stream from './DataHelper/stream.js'
 
-// Gettin' data through webpeck proxy
+// Gettin' data through webpack proxy
 const URL = 'http://localhost:8080/api/v1/klines?symbol='
 const WSS = 'ws://localhost:8080/ws/btcusdt@aggTrade'
 
@@ -39,10 +39,13 @@ export default {
                 }]
             })
             // Register onrange callback & And a stream of trades
-            this.chart.onrange(this.load_chunk)
+            this.chart.setDataHandlers({
+                loadForRange: this.load_chunk
+            })
+
             this.stream = new Stream(WSS)
             this.stream.ontrades = this.on_trades
-            window.DataCube = this.chart // Debug
+            window.DataCube = this.chart // expose for debugging
         })
 
     },
@@ -52,7 +55,11 @@ export default {
             this.height = window.innerHeight - 50
         },
         // New data handler. Should return Promise, or
-        // use callback: load_chunk(range, tf, callback)
+        // use callback: load_chunk(range, tf, callback);
+        //
+        // in case of callback usage, our function should return null;
+        // also make sure to _always_ invoke callback, even with non-valid
+        // data in case of errors - otherwise app state goes bad!
         async load_chunk(range) {
             const [t1, t2] = range
             const x = 'BTCUSDT'

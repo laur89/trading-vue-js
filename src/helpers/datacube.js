@@ -10,6 +10,22 @@ export default class DataCube extends DCCore {
 
     constructor(data = {}) {
         super()
+        this.dynamicData = {
+            loadForRange: null,  // can be either null or function
+            sub: null,  // can be either null or function
+            unsub: null,  // can be either null or function
+
+            rangeToQuery: [],
+            timeframe: 0,
+
+            loading: false,  // whether we're currently in process of fetching data for a range; TODO: rename as 'fetching'
+            scrollLock: false,
+
+            isBeginning: false,  // whether we've reached the beginning of chart - no earlier data is avail
+            isEnd: false,  // whether we've reached the end of chart - no later data is or will be avail
+            isHead: false  // whether we've subscribed to automatically receive chart updates
+        }
+
         this.data = data
     }
 
@@ -179,11 +195,24 @@ export default class DataCube extends DCCore {
         this.merge(query + '.settings', { display: false })
     }
 
-    // Set data loader callback
-    onrange(callback) {
-        this.loader = callback
-        setTimeout(() =>
-            this.tv.set_loader(callback ? this : null), 0
+    setDataHandlers({
+                        loadForRange = null,
+                        onRangeChanged = this.range_changed,
+                        onCursorLockChanged = this.onCursorLockChanged,
+                        onLiveData = this.received_live_data,
+                        subscribe = this.subscribe,
+                        unsubscribe = this.unsubscribe,
+                    } = {}) {
+        this.dynamicData.loadForRange = Utils.get_fun_or_null(loadForRange)
+        subscribe = Utils.get_fun_or_null(subscribe)
+        this.dynamicData.sub = subscribe === null ? null : subscribe.bind(null, Utils.get_fun_or_null(onLiveData))
+        this.dynamicData.unsub = Utils.get_fun_or_null(unsubscribe)
+
+        // allow vue to init, register listeners at next tick:
+        setTimeout(() => {
+                this.tv.register_range_changed_listener(Utils.get_fun_or_null(onRangeChanged))
+                this.tv.register_cursor_lock_listener(Utils.get_fun_or_null(onCursorLockChanged))
+            }, 0
         )
     }
 
