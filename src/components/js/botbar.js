@@ -103,10 +103,10 @@ export default class Botbar {
     }
 
     format_cursor_x() {
-        const ti = this.$p.interval
         let t = this.$p.cursor.t
         t += new Date(t).getTimezoneOffset() * MINUTE
         const d = new Date(t)
+        const ti = this.$p.interval
 
         if (ti === YEAR) {
             return d.getFullYear()

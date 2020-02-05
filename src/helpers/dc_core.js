@@ -6,6 +6,10 @@ import DCEvents from './dc_events.js'
 
 export default class DCCore extends DCEvents {
 
+    constructor() {
+        super()
+    }
+
     // Set TV instance (once). Called by TradingVue itself
     init_tvjs($root) {
         if (this.tv === undefined) {
@@ -21,7 +25,7 @@ export default class DCCore extends DCEvents {
         if (!this.data.hasOwnProperty('chart')) {
             this.tv.$set(this.data, 'chart', {
                 type: 'Candles',
-                data: this.data.ohlcv || []
+                data: this.data.ohlcv || []  // TODO remove 'this.data.ohlcv' once old data format is fully deprecated
             })
         }
 
@@ -38,63 +42,181 @@ export default class DCCore extends DCEvents {
         }
 
         // Remove ohlcv cuz we have Data v1.1
+        // TODO: remove this line at one point once old data format is fully deprecated:
         delete this.data.ohlcv
     }
 
-    // Range change callback (called by TradingVue)
-    async range_changed(range, tf) {
+    /**
+     * Provides a debouncing logic over our onRangeChanged function
+     * so it doesn't fire downstream logic too rapidly.
+     *
+     * First we wait for a base delay time, and then continue sleeping
+     * while cursor-lock is enabled.
+     * @returns {Promise<void>}
+     * @private
+     */
+    _pauseRangeLogic = async () => {
+        await Utils.pause(500)
+        while (this.dynamicData.scrollLock) {
+            await Utils.pause(50)
+        }
+    }
 
-        if (typeof this.loader !== 'function') return
-        if (!this.loading) {  // avoid simultaneous fetches
-            const first = this.data.chart.data[0][0]
-            if (range[0] < first) {
-                this.loading = true
-                //  TODO: if I understand correctly, then sleep is not what we want here!
-                // consider lodash.debounce instead (w/ options.trailing = true);
-                // note there might be some issues considering it's async fun;
-                // eg see https://stackoverflow.com/a/50837389;
-                // (perhaps debounce this.loader instead?)
-                //
-                // maybe https://github.com/szchenghuang/debounce-async#readme ?
-                await Utils.pause(250) // Load bigger chunks
-                range = range.slice(0)  // copy
-                range[0] = Math.floor(range[0])
-                range[1] = Math.floor(first)
-                const prom = this.loader(range, tf, d => {
-                    // Callback way
-                    this.chunk_loaded(d)
-                })
-                if (prom !== null && typeof prom === 'object' && typeof prom.then === 'function') {
-                    // Promise way
-                    try {
-                        const d = await prom;
-                        this.chunk_loaded(d)
-                    } catch (e) {
-                        this.loading = false
-                    }
+    // Range change callback (called by TradingVue event-handler)
+    //
+    // TODO:
+    // a) requests chunks in certain/predictable steps to allow caching server responses;
+    // b) we need to re-set isEnd/isBeginning back to false if DC data is truncated;
+    // c) where to handle truncating? here?
+    // d) (semi-done) where/how to handle snapping to isHead to subscribe to live updates?
+    // e) deprecate REST interface and do everything over socket?
+    range_changed = async (r, tf) => {
+
+        // keep updating the range & tf we should be pulling data for with next fetch:
+        this.dynamicData.rangeToQuery = r;
+        this.dynamicData.timeframe = tf;
+        if (this.dynamicData.loading || this.dynamicData.loadForRange === null || (this.dynamicData.isBeginning && this.dynamicData.isEnd)) return
+
+        this.dynamicData.loading = true  // avoid simultaneous processing
+
+        //  TODO: not sure sleeping is what we want to do here;
+        // consider lodash.debounce instead (w/ options.trailing = true);
+        // note there might be some issues w/ debounce considering it's an async fun;
+        // eg see https://stackoverflow.com/a/50837389;
+        // (perhaps debounce this.dynamicData.loadForRange instead?)
+        //
+        // maybe https://github.com/szchenghuang/debounce-async#readme instead of lodash?
+        // in this case it should be noted that the promises returned by this function
+        // would get rejected during debouncing, which _might_ affect vue adversely.
+
+        // Sleep to allow bigger chunks; note the range we're working against is
+        // allowed to be updated above, effectively simulating debounce:
+        await this._pauseRangeLogic()
+
+        const range = this.dynamicData.rangeToQuery.slice(0)  // take latest range snapshot
+        const d = this.data.chart.data
+
+        let head = Infinity, tail = -Infinity;
+        if (d.length !== 0) {
+            head = d[0][0]
+            tail = d[d.length - 1][0]
+        }
+
+        range[0] = range[0] < head ? Math.floor(range[0]) : tail
+        range[1] = range[1] > tail ? Math.ceil(range[1]) : head
+
+        // make sure 'loading' flag is _always_ reset, otherwise our state goes bad!
+        if (this.dynamicData.isHead) {
+            // see if we should un-subscribe from live data if we've 'snapped' back far enough from tail:
+            if (d.length !== 0 && range[1] < tail - this.dynamicData.timeframe * 5) {
+                this.dynamicData.isHead = false  // we're no longer keeping up-to-date w/ live events
+                if (this.dynamicData.unsub !== null) this.dynamicData.unsub()
+            }
+
+            this.dynamicData.loading = false
+        } else if (range[0] < head || range[1] > tail) {
+            // TODO: split requests into 2 in case we need to get both tail & head - currently we'd be
+            // re-fetching existing data; this would be the case when user zooms out (or maybe resizes window)
+
+            // TODO: handle fetchDirection=0 case where one of the ends might've been reached;
+            const fetchDirection = _getFetchDirection(range, head, tail)
+            if ((this.dynamicData.isBeginning && fetchDirection === -1) || (this.dynamicData.isEnd && fetchDirection === 1)) {
+                this.dynamicData.loading = false
+                return
+            }
+
+            // TODO: document that loader should return null when using callback.
+            // note it's users' responsibility to make sure callback is invoked, no matter what!
+            const prom = this.dynamicData.loadForRange(range, this.dynamicData.timeframe, d => {
+                // Callback way:
+                this.chunk_loaded(d)
+            })
+
+            if (prom !== null && typeof prom === 'object' && typeof prom.then === 'function') {
+                // Promise way:
+                try {
+                    this.chunk_loaded(await prom)
+                } catch (e) {  // rejected promise, chunk_loaded() never throws
+                    this.dynamicData.loading = false
                 }
             }
+        } else {
+            // after pause we were within the existing data range,
+            // so nothing needed to be pulled
+            this.dynamicData.loading = false
         }
     }
 
     // A new chunk of data is loaded
-    // TODO: bulletproof fetch (eg we need to make sure this.loading
-    // flag is reset on exceptions)
-    chunk_loaded(data) {
+    chunk_loaded = data => {
         try {
-            // Updates only candlestick data, or
             if (Array.isArray(data)) {
+                // array means only the main chart is updated
                 this.merge('chart.data', data)
             } else if (data !== null && typeof data === 'object') {
                 // Bunch of overlays, including chart.data
+                this._updateLastFetchedRange(data)
                 for (const k in data) {
                     this.merge(k, data[k])
                 }
-            } else {
-                // TODO: how to handle unexpected data? throw and force users to clean up?
+
+                if (this.dynamicData.isHead) {
+                    if (this.dynamicData.sub !== null) {
+                        let d = this.data.chart.data
+                        d = d.length === 0 ? -1 : d[d.length - 1][0]
+                        this.dynamicData.sub(d);  // call sub w/ the latest timestamp we have
+                    } else {
+                        this.dynamicData.isHead = false  // reset the just-assigned 'true' value, as we're not subscribed for live data
+                    }
+                }
             }
         } finally {
-            this.loading = false
+            this.dynamicData.loading = false
+        }
+    }
+
+    _updateLastFetchedRange = chartData => {
+
+        ['isBeginning', 'isEnd', 'isHead'].forEach(prop => {
+            if (chartData.hasOwnProperty(prop)) {
+                this.dynamicData[prop] = chartData[prop]
+                delete chartData[prop]  // clean up the metadata as it's not part of the chart
+            }
+        })
+    }
+
+    // TODO: does not need be async, right?
+    received_live_data = data => {
+
+        if (Array.isArray(data)) {
+            this.merge('chart.data', data)
+        } else if (data !== null && typeof data === 'object') {
+            for (const k in data) {
+                this.merge(k, data[k]);
+            }
+        } else {
+            return
+        }
+
+        const d = this.data.chart.data
+        if (!this.dynamicData.scrollLock && d.length !== 0) {
+            this.tv.goto(d[d.length-1][0]);
+        }
+    }
+
+    // TODO: debounce? or do we need to handle those click&pan double events?
+    onCursorLockChanged = isLocked => {
+        if (isLocked && !this.dynamicData.scrollLock) {
+            this.dynamicData.scrollLock = true
+        } else if (!isLocked && this.dynamicData.scrollLock) {
+            this.dynamicData.scrollLock = false
+            if (this.dynamicData.isHead) {
+                // move cursor to latest datapoint - we might've
+                // scrolled slightly away from it:
+                // TODO: perhaps only scroll back if we had scrolled into the past, and leave future as-is?
+                const d = this.data.chart.data
+                if (d.length !== 0) this.tv.goto(d[d.length-1][0]);
+            }
         }
     }
 
@@ -201,10 +323,10 @@ export default class DCCore extends DCEvents {
 
         const arr = this.data[side].filter(
             x => x.id && x.name && (
-                 x.id === query ||
-                 x.id.includes(path) ||
-                 x.name === query ||
-                 x.name.includes(path)
+                x.id === query ||
+                x.id.includes(path) ||
+                x.name === query ||
+                x.name.includes(path)
             ))
 
         if (field) {
@@ -352,5 +474,17 @@ export default class DCCore extends DCEvents {
             return []
         }
     }
+}
 
+
+// when this function is called, it must've been verified
+// by this moment that we need to be fetching data at least in one direction
+const _getFetchDirection = (range, head, tail) => {
+    if (range[0] === tail) {
+        return 1  // we're fetching from future
+    } else if (range[1] === head) {
+        return -1  // we're fetching from the past
+    }
+
+    return 0  // we're fetching for both ends
 }

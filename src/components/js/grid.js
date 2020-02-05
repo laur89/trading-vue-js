@@ -7,6 +7,9 @@ import Hamster from 'hamsterjs'
 import Utils from '../../stuff/utils.js'
 
 // Grid is good.
+//
+// TODO: currently we emit multiple 'cursor-locked' events,
+// eg one when we click, second when we start paning; might be ok, just something to... review perhaps
 export default class Grid {
 
     constructor(canvas, comp) {
