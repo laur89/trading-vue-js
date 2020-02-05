@@ -236,9 +236,11 @@ export default {
             this.$refs.chart.$off('range-changed')
             if (dc) {
                 this.$refs.chart.$on('range-changed',
-                    r => dc.range_changed(
-                        r, this.$refs.chart.interval
-                    )
+                    // TODO: test if vue is ok if Promise here is rejected:
+                    r => new Promise((rs, rj) => rj(`rejected for range ${r}:(`))
+                    // r => dc.range_changed(
+                    //     r, this.$refs.chart.interval
+                    // )
                 )
             }
         }
