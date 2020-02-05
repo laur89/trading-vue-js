@@ -27,7 +27,7 @@ import Stream from './DataHelper/stream.js'
 import ScriptOverlay from './Scripts/EMAx6.vue'
 import BSB from './Scripts/BuySellBalance.vue'
 
-// Gettin' data through webpeck proxy
+// Gettin' data through webpack proxy
 const PORT = location.port
 const URL = `http://localhost:${PORT}/api/v1/klines?symbol=`
 const WSS = `ws://localhost:${PORT}/ws/btcusdt@aggTrade`
@@ -67,7 +67,10 @@ export default {
                 }]
             }, { aggregation: 100 })
             // Register onrange callback & And a stream of trades
-            this.chart.onrange(this.load_chunk)
+            this.chart.setDataHandlers({
+                loadForRange: this.load_chunk
+            })
+
             this.$refs.tvjs.resetChart()
             this.stream = new Stream(WSS)
             this.stream.ontrades = this.on_trades
@@ -83,7 +86,11 @@ export default {
             this.height = window.innerHeight - 50
         },
         // New data handler. Should return Promise, or
-        // use callback: load_chunk(range, tf, callback)
+        // use callback: load_chunk(range, tf, callback);
+        //
+        // in case of callback usage, our function should return null;
+        // also make sure to _always_ invoke callback, even with non-valid
+        // data in case of errors - otherwise app state goes bad!
         async load_chunk(range) {
             let [t1, t2] = range
             let x = 'BTCUSDT'

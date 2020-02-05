@@ -131,6 +131,7 @@ export default class Botbar {
 
         //t += new Date(t).getTimezoneOffset() * MINUTE
         let d = new Date(t + k * this.$p.timezone * HOUR)
+        const ti = this.$p.interval
 
         if (ti === YEAR) {
             return d.getUTCFullYear()
