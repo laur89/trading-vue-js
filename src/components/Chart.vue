@@ -424,7 +424,7 @@ export default {
                 }
                 if (this._hook_data) this.ce('?chart-data', nw)
                 this.update_last_values()
-                // TODO: update legend values for overalys
+                // TODO: update legend values for overlays
                 this.rerender++
             },
             deep: true

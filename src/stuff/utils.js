@@ -207,6 +207,15 @@ export default {
         }
     },
 
+
+
+    // sanitize function argument;
+    // return the given arg if it's function, else null
+    get_fun_or_null(f) {
+        return typeof f === 'function' ? f : null
+    },
+
+
     // Detect index shift between the main data sub
     // and the overlay's sub (for IB-mode)
     index_shift(sub, data) {
@@ -340,5 +349,4 @@ export default {
         (w.DocumentTouch &&
         document instanceof w.DocumentTouch))))
         (typeof window !== 'undefined' ? window : {})
-
 }

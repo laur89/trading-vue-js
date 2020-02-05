@@ -218,11 +218,38 @@ export default class DataCube extends DCCore {
         this.merge(query + '.settings', { display: false })
     }
 
+
+
+    // TODO: onrange() I had deleted... is this needed or not???
     // Set data loader callback
     onrange(callback) {
         this.loader = callback
         setTimeout(() =>
             this.tv.set_loader(callback ? this : null), 0
+        )
+    }
+
+
+
+
+    setDataHandlers({
+                        loadForRange = null,
+                        onRangeChanged = this.range_changed,
+                        onCursorLockChanged = this.onCursorLockChanged,
+                        onLiveData = this.received_live_data,
+                        subscribe = this.subscribe,
+                        unsubscribe = this.unsubscribe,
+                    } = {}) {
+        this.dynamicData.loadForRange = Utils.get_fun_or_null(loadForRange)
+        subscribe = Utils.get_fun_or_null(subscribe)
+        this.dynamicData.sub = subscribe === null ? null : subscribe.bind(null, Utils.get_fun_or_null(onLiveData))
+        this.dynamicData.unsub = Utils.get_fun_or_null(unsubscribe)
+
+        // allow vue to init, register listeners at next tick:
+        setTimeout(() => {
+                this.tv.register_range_changed_listener(Utils.get_fun_or_null(onRangeChanged))
+                this.tv.register_cursor_lock_listener(Utils.get_fun_or_null(onCursorLockChanged))
+            }, 0
         )
     }
 

@@ -25,7 +25,7 @@
             v-bind:tv_id="id"
             v-bind:config="chart_config"
             v-on:custom-event="custom_event"
-            v-on:range-changed="range_changed"
+            v-on:range-changed="on_range_changed"
             v-on:legend-button-click="legend_button">
         </chart>
         <transition name="tvjs-drift">
@@ -315,7 +315,7 @@ export default {
             })
         },
         custom_event(d) {
-            if ('args' in d) {
+            if (d.hasOwnProperty('args')) {
                 this.$emit(d.event, ...d.args)
             } else {
                 this.$emit(d.event)
@@ -330,7 +330,7 @@ export default {
             }
             if (ctrl) this.post_dc(d)
         },
-        range_changed(r) {
+        on_range_changed(r) {
             if (this.chart_props.ib) {
                 const ti_map = this.$refs.chart.ti_map
                 r = r.map(x => ti_map.i2t(x))
@@ -363,6 +363,25 @@ export default {
         },
         mouseleave() {
             this.$refs.chart.activated = false
+        },
+
+
+
+        // TODO: perhaps instead of going through vue component for
+        // event registration, consider using something like https://github.com/sandeepk01/vue-event-handler ?
+        register_range_changed_listener(onRangeChanged) {
+            if (onRangeChanged !== null) {
+                this.$refs.chart.$off('range-changed')
+                this.$refs.chart.$on('range-changed',
+                    r => onRangeChanged(r, this.$refs.chart.interval)
+                )
+            }
+        },
+        register_cursor_lock_listener(onCursorLockChanged) {
+            if (onCursorLockChanged !== null) {
+                this.$refs.chart.$off('cursor-locked')
+                this.$refs.chart.$on('cursor-locked', onCursorLockChanged)
+            }
         }
     }
 }
