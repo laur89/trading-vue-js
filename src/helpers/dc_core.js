@@ -42,7 +42,7 @@ export default class DCCore extends DCEvents {
     }
 
     // Range change callback (called by TradingVue)
-    async range_changed(range, tf, check = false) {
+    async range_changed(range, tf) {
 
         if (typeof this.loader !== 'function') return
         if (!this.loading) {  // avoid simultaneous fetches
@@ -75,8 +75,6 @@ export default class DCCore extends DCEvents {
                 }
             }
         }
-
-        if (!check) this.last_chunk = [range, tf]
     }
 
     // A new chunk of data is loaded
@@ -94,11 +92,6 @@ export default class DCCore extends DCEvents {
                 }
             } else {
                 // TODO: how to handle unexpected data? throw and force users to clean up?
-            }
-
-            if (this.last_chunk) {
-                this.range_changed(...this.last_chunk, true)
-                this.last_chunk = null
             }
         } finally {
             this.loading = false
