@@ -75,6 +75,13 @@ export default class DCCore extends DCEvents {
             const first = this.data.chart.data[0][0]
             if (range[0] < first) {
                 this.loading = true
+                //  TODO: if I understand correctly, then sleep is not what we want here!
+                // consider lodash.debounce instead (w/ options.trailing = true);
+                // note there might be some issues considering it's async fun;
+                // eg see https://stackoverflow.com/a/50837389;
+                // (perhaps debounce this.loader instead?)
+                //
+                // maybe https://github.com/szchenghuang/debounce-async#readme ?
                 await Utils.pause(250) // Load bigger chunks
                 range = range.slice(0)  // copy
                 range[0] = Math.floor(range[0])
@@ -85,7 +92,12 @@ export default class DCCore extends DCEvents {
                 })
                 if (prom !== null && typeof prom === 'object' && typeof prom.then === 'function') {
                     // Promise way
-                    this.chunk_loaded(await prom)
+                    try {
+                        const d = await prom;
+                        this.chunk_loaded(d)
+                    } catch (e) {
+                        this.loading = false
+                    }
                 }
             }
         }
@@ -97,20 +109,25 @@ export default class DCCore extends DCEvents {
     // TODO: bulletproof fetch (eg we need to make sure this.loading
     // flag is reset on exceptions)
     chunk_loaded(data) {
-        // Updates only candlestick data, or
-        if (Array.isArray(data)) {
-            this.merge('chart.data', data)
-        } else {
-            // Bunch of overlays, including chart.data
-            for (const k in data) {
-                this.merge(k, data[k])
+        try {
+            // Updates only candlestick data, or
+            if (Array.isArray(data)) {
+                this.merge('chart.data', data)
+            } else if (data !== null && typeof data === 'object') {
+                // Bunch of overlays, including chart.data
+                for (const k in data) {
+                    this.merge(k, data[k])
+                }
+            } else {
+                // TODO: how to handle unexpected data? throw and force users to clean up?
             }
-        }
 
-        this.loading = false
-        if (this.last_chunk) {
-            this.range_changed(...this.last_chunk, true)
-            this.last_chunk = null
+            if (this.last_chunk) {
+                this.range_changed(...this.last_chunk, true)
+                this.last_chunk = null
+            }
+        } finally {
+            this.loading = false
         }
     }
 
