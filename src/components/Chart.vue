@@ -88,6 +88,7 @@ export default {
         cursor_locked(state) {
             if (this.cursor.scroll_lock && state) return
             this.cursor.locked = state
+            this.$emit('cursor-locked', state)
         },
         calc_interval() {
             if (this.ohlcv.length < 2) return
@@ -363,7 +364,7 @@ export default {
                     this.cursor.locked = false
                 }
                 this.update_last_candle()
-                // TODO: update legend values for overalys
+                // TODO: update legend values for overlays
                 this.rerender++
             },
             deep: true

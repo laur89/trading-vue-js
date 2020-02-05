@@ -199,6 +199,12 @@ export default {
         } else {
             return smth
         }
-    }
+    },
 
+
+    // sanitize function argument;
+    // return the given arg if it's function, else null
+    get_fun_or_null(f) {
+        return typeof f === 'function' ? f : null
+    }
 }
