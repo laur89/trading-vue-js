@@ -16,7 +16,7 @@ export default class DataCube extends DCCore {
             unsub: null,  // can be either null or function
 
             rangeToQuery: [],
-            timeframe: 0,
+            timeframe: 0,  // millisec
 
             loading: false,  // whether we're currently in process of fetching data for a range; TODO: rename as 'fetching'
             scrollLock: false,
@@ -25,7 +25,8 @@ export default class DataCube extends DCCore {
             isEnd: false,  // whether we've reached the end of chart - no later data is or will be avail
             isHead: false,  // whether we've subscribed to automatically receive chart updates
 
-            maxDatapoints: 10000  // max number of datapoints allowed in memory; when exceeded, we start truncating
+            maxDatapoints: 10000,  // max number of datapoints allowed in memory; when exceeded, we start truncating
+            fetchLookAhead: 1000  // how many datapoints should we fetch ahead as a buffer
         }
 
         this.data = data
