@@ -239,6 +239,7 @@ export default {
 
         // TODO: perhaps instead of going through vue component for
         // event registration, consider using something like https://github.com/sandeepk01/vue-event-handler ?
+        // or any other event-bus, or better yet - vuex
         register_range_changed_listener(onRangeChanged) {
             if (onRangeChanged !== null) {
                 this.$refs.chart.$off('range-changed')
