@@ -13,6 +13,24 @@ export default class DataCube extends DCCore {
 
     constructor(data = {}, sett = {}) {
 
+        this.dynamicData = {
+            loadForRange: null,  // can be either null or function
+            sub: null,  // can be either null or function
+            unsub: null,  // can be either null or function
+
+            rangeToQuery: [],
+            timeframe: 0,
+
+            loading: false,  // whether we're currently in process of fetching data for a range; TODO: rename as 'fetching'
+            scrollLock: false,
+
+            isBeginning: false,  // whether we've reached the beginning of chart - no earlier data is avail
+            isEnd: false,  // whether we've reached the end of chart - no later data is or will be avail
+            isHead: false,  // whether we've subscribed to automatically receive chart updates
+
+            maxDatapoints: 10000  // max number of datapoints allowed in memory; when exceeded, we start truncating
+        }
+
         let def_sett = {
             aggregation: 100,       // Update aggregation interval
             script_depth: 0,        // 0 === Exec on all data

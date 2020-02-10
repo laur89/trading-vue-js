@@ -142,7 +142,7 @@ export default class DCCore extends DCEvents {
         let latch = null
         const cb = d => {
             // Callback way:
-            this.chunk_loaded(d, latch)
+            this.chunk_loaded(d, fetchDirection, latch)
         }
         let promises
 
@@ -166,7 +166,7 @@ export default class DCCore extends DCEvents {
             // Promise way:
             try {
                 for (const data of await Promise.all(promises)) {
-                    this.chunk_loaded(data)
+                    this.chunk_loaded(data, fetchDirection)
                 }
             } catch (e) {  // rejected promise(s), chunk_loaded() never throws
                 this.dynamicData.loading = false
@@ -175,7 +175,7 @@ export default class DCCore extends DCEvents {
     }
 
     // A new chunk of data is loaded
-    chunk_loaded = (data, latch = null) => {
+    chunk_loaded = (data, fetchDirection, latch = null) => {
         try {
             if (Array.isArray(data)) {
                 // array means only the main chart is updated
@@ -199,9 +199,34 @@ export default class DCCore extends DCEvents {
             }
         } finally {
             if (!(latch !== null && !latch.check())) {
+                this.truncate_data(fetchDirection)  // truncate before releasing 'loading' lock!
                 this.dynamicData.loading = false
             }
         }
+    }
+
+    truncate_data = fetchDirection => {
+        const t = data => {
+            if (data.length > this.dynamicData.maxDatapoints) {
+                switch (fetchDirection) {
+                    case 1:
+                        data.splice(0, data.length - this.dynamicData.maxDatapoints)
+                        break;
+                    case -1:
+                        data.length = this.dynamicData.maxDatapoints
+                        break;
+                    default: {  // fetchDirection = 0, ie need to truncate from both ends
+                        const trimLen = Math.ceil((data.length - this.dynamicData.maxDatapoints) / 2)
+                        data.length = data.length - trimLen
+                        data.splice(0, trimLen)
+                        break;
+                    }
+                }
+            }
+        }
+
+        t(this.data.chart.data)
+        ['onchart', 'offchart'].forEach(k => this.data[k].forEach(c => t(c.data)))
     }
 
     _updateLastFetchedRange = chartData => {
@@ -230,6 +255,8 @@ export default class DCCore extends DCEvents {
         if (!this.dynamicData.scrollLock && d.length !== 0) {
             this.tv.goto(d[d.length-1][0]);
         }
+
+        this.truncate_data(1)
     }
 
     onCursorLockChanged = isLocked => {
