@@ -136,18 +136,25 @@ export default class DCCore extends DCEvents {
             this.chunk_loaded(d, fetchDirection, latch)
         }
         let promises
+        const fetchLookAheadMs = this.dynamicData.fetchLookAhead * this.dynamicData.timeframe
 
         if (fetchDirection === 0) {
             // fetchDirection = 0 means we need to pull data for both ends, ie 2 requests
 
             latch = Utils.create_latch(2)
             promises = [
-                this.dynamicData.loadForRange([range[0], head], this.dynamicData.timeframe, cb),
-                this.dynamicData.loadForRange([tail, range[1]], this.dynamicData.timeframe, cb)
+                this.dynamicData.loadForRange([range[0] - fetchLookAheadMs, head], this.dynamicData.timeframe, cb),
+                this.dynamicData.loadForRange([tail, range[1] + fetchLookAheadMs], this.dynamicData.timeframe, cb)
             ]
         } else {  // need to pull data only for either end
             // TODO: document that loader should return null when using callback.
             // note it's users' responsibility to make sure callback is invoked, no matter what!
+            if (fetchDirection === -1) {  // fetching from past
+                range[0] -= fetchLookAheadMs
+            } else {  // fetchDirection = 1, fetching from future
+                range[1] += fetchLookAheadMs
+            }
+
             promises = [
                 this.dynamicData.loadForRange(range, this.dynamicData.timeframe, cb)
             ]
@@ -196,28 +203,29 @@ export default class DCCore extends DCEvents {
         }
     }
 
-    truncate_data = fetchDirection => {
-        const t = data => {
-            if (data.length > this.dynamicData.maxDatapoints) {
-                switch (fetchDirection) {
-                    case 1:
-                        data.splice(0, data.length - this.dynamicData.maxDatapoints)
-                        break;
-                    case -1:
-                        data.length = this.dynamicData.maxDatapoints
-                        break;
-                    default: {  // fetchDirection = 0, ie need to truncate from both ends
-                        const trimLen = Math.ceil((data.length - this.dynamicData.maxDatapoints) / 2)
-                        data.length = data.length - trimLen
-                        data.splice(0, trimLen)
-                        break;
-                    }
+    t = (data, fetchDirection) => {
+        if (data.length > this.dynamicData.maxDatapoints) {
+            switch (fetchDirection) {
+                case 1:
+                    data.splice(0, data.length - this.dynamicData.maxDatapoints)
+                    break;
+                case -1:
+                    data.length = this.dynamicData.maxDatapoints
+                    break;
+                default: {  // fetchDirection = 0, ie need to truncate from both ends
+                    const trimLen = Math.ceil((data.length - this.dynamicData.maxDatapoints) / 2)
+                    data.length = data.length - trimLen
+                    data.splice(0, trimLen)
+                    break;
                 }
             }
         }
+    }
 
-        t(this.data.chart.data)
-        ['onchart', 'offchart'].forEach(k => this.data[k].forEach(c => t(c.data)))
+    truncate_data = fetchDirection => {
+        this.t(this.data.chart.data, fetchDirection)
+        this.data.onchart.forEach(c => this.t(c.data, fetchDirection))
+        this.data.offchart.forEach(c => this.t(c.data, fetchDirection))
     }
 
     _updateLastFetchedRange = chartData => {
