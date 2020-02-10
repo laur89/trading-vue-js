@@ -165,8 +165,8 @@ export default {
 
     now() { return new Date().getTime() },
 
-    pause(delay) {
-        return new Promise((rs/*, rj*/) => setTimeout(rs, delay))
+    pause(delayMs) {
+        return new Promise((rs/*, rj*/) => setTimeout(rs, delayMs))
     },
 
     // Limit crazy wheel delta values
@@ -213,6 +213,16 @@ export default {
     // return the given arg if it's function, else null
     get_fun_or_null(f) {
         return typeof f === 'function' ? f : null
+    },
+
+    is_promise(prom) {
+        return prom !== null && typeof prom === 'object' && typeof prom.then === 'function'
+    },
+
+    create_latch(count) {
+        return {
+            check: () => --count === 0
+        };
     },
 
 
