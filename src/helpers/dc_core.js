@@ -114,32 +114,8 @@ export default class DCCore extends DCEvents {
             }
 
             this.dynamicData.loading = false
-        } else if (range[0] < head || range[1] > tail) {
-            // TODO: split requests into 2 in case we need to get both tail & head - currently we'd be
-            // re-fetching existing data; this would be the case when user zooms out (or maybe resizes window)
-
-            // TODO: handle fetchDirection=0 case where one of the ends might've been reached;
-            const fetchDirection = _getFetchDirection(range, head, tail)
-            if ((this.dynamicData.isBeginning && fetchDirection === -1) || (this.dynamicData.isEnd && fetchDirection === 1)) {
-                this.dynamicData.loading = false
-                return
-            }
-
-            // TODO: document that loader should return null when using callback.
-            // note it's users' responsibility to make sure callback is invoked, no matter what!
-            const prom = this.dynamicData.loadForRange(range, this.dynamicData.timeframe, d => {
-                // Callback way:
-                this.chunk_loaded(d)
-            })
-
-            if (prom !== null && typeof prom === 'object' && typeof prom.then === 'function') {
-                // Promise way:
-                try {
-                    this.chunk_loaded(await prom)
-                } catch (e) {  // rejected promise, chunk_loaded() never throws
-                    this.dynamicData.loading = false
-                }
-            }
+        } else if (range[0] < head || range[1] > tail) {  // _at least_ one end needs more data
+            this.fetchAndProcess(range, head, tail)
         } else {
             // after pause we were within the existing data range,
             // so nothing needed to be pulled
@@ -147,8 +123,50 @@ export default class DCCore extends DCEvents {
         }
     }
 
+    fetchAndProcess = async (range, head, tail) => {
+        const fetchDirection = _getFetchDirection(range, head, tail)
+        if ((this.dynamicData.isBeginning && fetchDirection === -1) || (this.dynamicData.isEnd && fetchDirection === 1)) {
+            this.dynamicData.loading = false
+            return
+        }
+
+        let latch = null
+        const cb = d => {
+            // Callback way:
+            this.chunk_loaded(d, latch)
+        }
+        let promises
+
+        if (fetchDirection === 0) {
+            // fetchDirection = 0 means we need to pull data for both ends, ie 2 requests
+
+            latch = Utils.create_latch(2)
+            promises = [
+                this.dynamicData.loadForRange([range[0], head], this.dynamicData.timeframe, cb),
+                this.dynamicData.loadForRange([tail, range[1]], this.dynamicData.timeframe, cb)
+            ]
+        } else {  // need to pull data only for either end
+            // TODO: document that loader should return null when using callback.
+            // note it's users' responsibility to make sure callback is invoked, no matter what!
+            promises = [
+                this.dynamicData.loadForRange(range, this.dynamicData.timeframe, cb)
+            ]
+        }
+
+        if (Utils.is_promise(promises[0])) {
+            // Promise way:
+            try {
+                for (const data of await Promise.all(promises)) {
+                    this.chunk_loaded(data)
+                }
+            } catch (e) {  // rejected promise(s), chunk_loaded() never throws
+                this.dynamicData.loading = false
+            }
+        }
+    }
+
     // A new chunk of data is loaded
-    chunk_loaded = data => {
+    chunk_loaded = (data, latch = null) => {
         try {
             if (Array.isArray(data)) {
                 // array means only the main chart is updated
@@ -171,7 +189,9 @@ export default class DCCore extends DCEvents {
                 }
             }
         } finally {
-            this.dynamicData.loading = false
+            if (!(latch !== null && !latch.check())) {
+                this.dynamicData.loading = false
+            }
         }
     }
 
@@ -185,7 +205,6 @@ export default class DCCore extends DCEvents {
         })
     }
 
-    // TODO: does not need be async, right?
     received_live_data = data => {
 
         if (Array.isArray(data)) {
@@ -204,7 +223,6 @@ export default class DCCore extends DCEvents {
         }
     }
 
-    // TODO: debounce? or do we need to handle those click&pan double events?
     onCursorLockChanged = isLocked => {
         if (isLocked && !this.dynamicData.scrollLock) {
             this.dynamicData.scrollLock = true
@@ -481,9 +499,9 @@ export default class DCCore extends DCEvents {
 // by this moment that we need to be fetching data at least in one direction
 const _getFetchDirection = (range, head, tail) => {
     if (range[0] === tail) {
-        return 1  // we're fetching from future
+        return 1  // we're fetching from future, ie from right hand side
     } else if (range[1] === head) {
-        return -1  // we're fetching from the past
+        return -1  // we're fetching from the past, ie from left hand side
     }
 
     return 0  // we're fetching for both ends
