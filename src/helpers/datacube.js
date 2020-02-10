@@ -23,7 +23,9 @@ export default class DataCube extends DCCore {
 
             isBeginning: false,  // whether we've reached the beginning of chart - no earlier data is avail
             isEnd: false,  // whether we've reached the end of chart - no later data is or will be avail
-            isHead: false  // whether we've subscribed to automatically receive chart updates
+            isHead: false,  // whether we've subscribed to automatically receive chart updates
+
+            maxDatapoints: 10000  // max number of datapoints allowed in memory; when exceeded, we start truncating
         }
 
         this.data = data
