@@ -417,7 +417,7 @@ export default {
                 }
                 let nw = this.data_changed()
                 this.update_layout(nw)
-                Utils.overwrite(this.range, this.range)
+                Utils.overwrite(this.range, this.range)  // TODO: pointless operation?
                 this.cursor.scroll_lock = !!n.scrollLock
                 if (n.scrollLock && this.cursor.locked) {
                     this.cursor.locked = false

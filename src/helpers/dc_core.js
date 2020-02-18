@@ -4,6 +4,7 @@
 import Utils from '../stuff/utils.js'
 import DCEvents from './dc_events.js'
 import Dataset from './dataset.js'
+import { mergeWith } from 'lodash-es';
 
 export default class DCCore extends DCEvents {
 
@@ -71,7 +72,28 @@ export default class DCCore extends DCEvents {
 
     }
 
+
+    /**
+     * Provides a debouncing logic over our onRangeChanged function
+     * so it doesn't fire downstream logic too rapidly.
+     *
+     * First we wait for a base delay time, and then continue sleeping
+     * while cursor-lock is enabled.
+     * @returns {Promise<void>}
+     * @private
+     */
+    _pauseRangeLogic = async () => {
+        await Utils.pause(500)
+        while (this.dynamicData.cursorLock) {
+            await Utils.pause(50)
+        }
+    }
+
+
+
     // Range change callback (called by TradingVue event-handler)
+    //
+    // make sure 'loading' flag is _always_ reset, otherwise our state goes bad!
     //
     // TODO:
     // a) requests chunks in certain/predictable steps to allow caching server responses;
@@ -84,7 +106,8 @@ export default class DCCore extends DCEvents {
         // keep updating the range & tf we should be pulling data for with next fetch:
         this.dynamicData.rangeToQuery = r;
         this.dynamicData.timeframe = tf;
-        if (this.dynamicData.loading || this.dynamicData.loadForRange === null || (this.dynamicData.isBeginning && this.dynamicData.isEnd)) return
+        if (this.dynamicData.loading || this.dynamicData.loadForRange === null ||
+            (this.dynamicData.isBeginning && this.dynamicData.isEnd)) return
 
         this.dynamicData.loading = true  // avoid simultaneous processing
 
@@ -111,19 +134,21 @@ export default class DCCore extends DCEvents {
             tail = d[d.length - 1][0]
         }
 
-        range[0] = range[0] < head ? Math.floor(range[0]) : tail
-        range[1] = range[1] > tail ? Math.ceil(range[1]) : head
-
-        // make sure 'loading' flag is _always_ reset, otherwise our state goes bad!
-        if (this.dynamicData.isHead) {
-            // see if we should un-subscribe from live data if we've 'snapped' back far enough from tail:
-            if (d.length !== 0 && range[1] < tail - this.dynamicData.timeframe * 5) {
-                this.dynamicData.isHead = false  // we're no longer keeping up-to-date w/ live events
-                if (this.dynamicData.unsub !== null) this.dynamicData.unsub()
-            }
-
+        if (this.dynamicData.isHead && !this.unsubIfNeeded(range[1], tail)) {
             this.dynamicData.loading = false
-        } else if (range[0] < head || range[1] > tail) {  // _at least_ one end needs more data
+            return
+        }
+
+        const fetchLookAheadMs = this.dynamicData.fetchLookAhead * this.dynamicData.timeframe
+        const fetchTriggerMarginMs = this.dynamicData.fetchTriggerMargin * this.dynamicData.timeframe
+        range[0] = (!this.dynamicData.isBeginning && range[0] - fetchTriggerMarginMs < head)
+            ? Math.floor(Math.min(range[0], head) - fetchLookAheadMs)
+            : tail
+        range[1] = (!this.dynamicData.isEnd && range[1] + fetchTriggerMarginMs > tail)
+            ? Math.ceil(Math.max(range[1], tail) + fetchLookAheadMs)
+            : head
+
+        if (range[0] < head || range[1] > tail) {  // _at least_ one end needs more data
             this.fetchAndProcess(range, head, tail)
         } else {
             // after pause we were within the existing data range,
@@ -132,48 +157,45 @@ export default class DCCore extends DCEvents {
         }
     }
 
-    fetchAndProcess = async (range, head, tail) => {
-        const fetchDirection = _getFetchDirection(range, head, tail)
-        if ((this.dynamicData.isBeginning && fetchDirection === -1) || (this.dynamicData.isEnd && fetchDirection === 1)) {
-            this.dynamicData.loading = false
-            return
+    unsubIfNeeded = (rangeTail, tail) => {
+        // see if we should un-subscribe from live data if we've 'snapped' back far enough from tail:
+        if (this.dynamicData.unsub !== null && rangeTail < tail - this.dynamicData.timeframe * 100) {
+            this.dynamicData.isHead = false  // we're no longer keeping up-to-date w/ live events
+            this.dynamicData.unsub()
+            return true
         }
 
+        return false
+    }
+
+    fetchAndProcess = async (range, head, tail) => {
+        const fetchDirection = _getFetchDirection(range, head, tail)
         let latch = null
         const cb = d => {
             // Callback way:
             this.chunk_loaded(d, fetchDirection, latch)
         }
-        let promises
-        const fetchLookAheadMs = this.dynamicData.fetchLookAhead * this.dynamicData.timeframe
+        let promises  // 1 or 2 promises, depending on whether we're pulling data for one end or both
 
         if (fetchDirection === 0) {
             // fetchDirection = 0 means we need to pull data for both ends, ie 2 requests
 
             latch = Utils.create_latch(2)
             promises = [
-                this.dynamicData.loadForRange([range[0] - fetchLookAheadMs, head], this.dynamicData.timeframe, cb),
-                this.dynamicData.loadForRange([tail, range[1] + fetchLookAheadMs], this.dynamicData.timeframe, cb)
+                this.dynamicData.loadForRange([range[0], head], this.dynamicData.timeframe, cb),
+                this.dynamicData.loadForRange([tail, range[1]], this.dynamicData.timeframe, cb)
             ]
         } else {  // need to pull data only for either end
-            // TODO: document that loader should return null when using callback.
-            // note it's users' responsibility to make sure callback is invoked, no matter what!
-            if (fetchDirection === -1) {  // fetching from past
-                range[0] -= fetchLookAheadMs
-            } else {  // fetchDirection = 1, fetching from future
-                range[1] += fetchLookAheadMs
-            }
-
             promises = [
                 this.dynamicData.loadForRange(range, this.dynamicData.timeframe, cb)
             ]
         }
 
-        if (Utils.is_promise(promises[0])) {
+        if (Utils.is_promise(promises[0])) {  // note we're testing promise by only the first element
             // Promise way:
             try {
                 for (const data of await Promise.all(promises)) {
-                    this.chunk_loaded(data, fetchDirection)
+                    this.chunk_loaded(data, fetchDirection, latch)
                 }
             } catch (e) {  // rejected promise(s), chunk_loaded() never throws
                 this.dynamicData.loading = false
@@ -189,16 +211,26 @@ export default class DCCore extends DCEvents {
                 this.merge('chart.data', data)
             } else if (data !== null && typeof data === 'object') {
                 // Bunch of overlays, including chart.data
-                this._updateLastFetchedRange(data)
+                this._extract_metadata(data)
                 for (const k in data) {
                     this.merge(k, data[k])
                 }
 
                 if (this.dynamicData.isHead) {
-                    if (this.dynamicData.sub !== null) {
-                        let d = this.data.chart.data
-                        d = d.length === 0 ? -1 : d[d.length - 1][0]
-                        this.dynamicData.sub(d);  // call sub w/ the latest timestamp we have
+                    const d = this.data.chart.data
+                    const tail = d.length === 0 ? -1 : d[d.length - 1][0]
+
+                    // if the tail of last data is close enough to our visible tail OR we just pulled the tail (1st req),
+                    // subscribe to live data feed:
+                    if (this.dynamicData.sub !== null && (this.dynamicData.hasOwnProperty('isTail') ||
+                            this.dynamicData.rangeToQuery[1] >= tail - this.dynamicData.timeframe * 100)) {
+                        delete this.dynamicData.isTail
+
+                        // TODO: possibly need invoking via setTimeout/$nextTick only with isTail (ie during init), as chart range hasn't been init'd yet
+                        this.tv.$nextTick(() => {
+                            this.tv.goto(tail)
+                            this.dynamicData.sub(tail);  // call sub w/ the latest timestamp we have
+                        })
                     } else {
                         this.dynamicData.isHead = false  // reset the just-assigned 'true' value, as we're not subscribed for live data
                     }
@@ -212,19 +244,33 @@ export default class DCCore extends DCEvents {
         }
     }
 
-    t = (data, fetchDirection) => {
+    _trunc = (data, fetchDirection) => {
+        const unsubIfNeeded = () => {
+            if (this.dynamicData.isHead) {
+                this.dynamicData.isHead = false  // TODO: set to false only if unsub !== null? (like we do somewhere above)
+                if (this.dynamicData.unsub !== null) this.dynamicData.unsub()
+            }
+        }
+
         if (data.length > this.dynamicData.maxDatapoints) {
             switch (fetchDirection) {
-                case 1:
+                case 1:  // truncate from the beginning
                     data.splice(0, data.length - this.dynamicData.maxDatapoints)
+                    this.dynamicData.isBeginning = false
                     break;
-                case -1:
+                case -1:  // truncate from the end
                     data.length = this.dynamicData.maxDatapoints
+                    this.dynamicData.isEnd = false
+                    unsubIfNeeded()
                     break;
-                default: {  // fetchDirection = 0, ie need to truncate from both ends
+                default: {  // fetchDirection = 0, ie truncate from both ends
                     const trimLen = Math.ceil((data.length - this.dynamicData.maxDatapoints) / 2)
                     data.length = data.length - trimLen
                     data.splice(0, trimLen)
+
+                    this.dynamicData.isBeginning = false
+                    this.dynamicData.isEnd = false
+                    unsubIfNeeded()
                     break;
                 }
             }
@@ -232,22 +278,27 @@ export default class DCCore extends DCEvents {
     }
 
     truncate_data = fetchDirection => {
-        this.t(this.data.chart.data, fetchDirection)
-        this.data.onchart.forEach(c => this.t(c.data, fetchDirection))
-        this.data.offchart.forEach(c => this.t(c.data, fetchDirection))
+        const f = c => this._trunc(c.data, fetchDirection)
+
+        this._trunc(this.data.chart.data, fetchDirection)
+        this.data.onchart.forEach(f)
+        this.data.offchart.forEach(f)
     }
 
-    _updateLastFetchedRange = chartData => {
+    _extract_metadata = chartData => {
 
-        ['isBeginning', 'isEnd', 'isHead'].forEach(prop => {
-            if (chartData.hasOwnProperty(prop)) {
-                this.dynamicData[prop] = chartData[prop]
-                delete chartData[prop]  // clean up the metadata as it's not part of the chart
-            }
-        })
+        if (chartData.hasOwnProperty('meta')) {
+            chartData.meta.markers.forEach(prop => this.dynamicData[prop] = true)  // isEnd, isHead, isBeginning, isTail
+            delete chartData.meta  // clean up the metadata as it's not part of the chart
+        }
     }
 
+    // TODO: do not goto if scroll-lock is enabled! (different from cursor lock)
     received_live_data = data => {
+
+        let d = this.data.chart.data
+        const oldTail = d.length === 0 ? -1 : d[d.length-1][0]  // TODO extract into getTail() or something
+        //const trunc = i => Math.ceil(i/this.dynamicData.timeframe) * this.dynamicData.timeframe
 
         if (Array.isArray(data)) {
             this.merge('chart.data', data)
@@ -259,26 +310,30 @@ export default class DCCore extends DCEvents {
             return
         }
 
-        const d = this.data.chart.data
-        if (!this.dynamicData.scrollLock && d.length !== 0) {
-            this.tv.goto(d[d.length-1][0]);
+        d = this.data.chart.data
+        if (!this.dynamicData.cursorLock && d.length !== 0 && this.dynamicData.rangeToQuery[1] >= oldTail) {
+            this.tv.goto(d[d.length-1][0])
+        } else {
+            this.unsubIfNeeded(this.dynamicData.rangeToQuery[1], d.length === 0 ? -1 : d[d.length-1][0])
         }
 
         this.truncate_data(1)
     }
 
+    // TODO: also react to scroll-lock event?
     onCursorLockChanged = isLocked => {
-        if (isLocked && !this.dynamicData.scrollLock) {
-            this.dynamicData.scrollLock = true
-        } else if (!isLocked && this.dynamicData.scrollLock) {
-            this.dynamicData.scrollLock = false
-            if (this.dynamicData.isHead) {
-                // move cursor to latest datapoint - we might've
-                // scrolled slightly away from it:
-                // TODO: perhaps only scroll back if we had scrolled into the past, and leave future as-is?
-                const d = this.data.chart.data
-                if (d.length !== 0) this.tv.goto(d[d.length-1][0]);
-            }
+        if (isLocked && !this.dynamicData.cursorLock) {
+            this.dynamicData.cursorLock = true
+        } else if (!isLocked && this.dynamicData.cursorLock) {
+            this.dynamicData.cursorLock = false
+            // we don't want to blindly scroll to tail on mouse release, right?:
+            //if (this.dynamicData.isHead) {
+            //    // move cursor to latest datapoint - we might've
+            //    // scrolled slightly away from it:
+            //    // TODO: perhaps only scroll back if we had scrolled into the past, and leave future as-is?
+            //    const d = this.data.chart.data
+            //    if (d.length !== 0) this.tv.goto(d[d.length-1][0]);
+            //}
         }
     }
 
@@ -394,6 +449,10 @@ export default class DCCore extends DCEvents {
         }
     }
 
+    on_or_off_chart(side) {
+        return side === 'onchart' || side === 'offchart'
+    }
+
     // Returns array of objects matching query.
     // Object contains { parent, index, value }
     // TODO: query caching
@@ -441,8 +500,7 @@ export default class DCCore extends DCEvents {
             x => !(x.v || {}).locked || chuck)
     }
 
-    chart_as_piv(tuple) {
-        const field = tuple[1]
+    chart_as_piv([_, field]) {
         if (field) {
             return [{
                 p: this.data.chart,
@@ -458,11 +516,7 @@ export default class DCCore extends DCEvents {
         }]
     }
 
-    query_search(query, tuple) {
-
-        const side = tuple[0]
-        const path = tuple[1] || ''
-        const field = tuple[2]
+    query_search(query, [side, path = '', field]) {
 
         let arr = this.data[side].filter(x => (
             x.id === query ||
@@ -475,106 +529,107 @@ export default class DCCore extends DCEvents {
         if (field) {
             return arr.map(x => ({
                 p: x,
-                i: field,
+                i: field,  // TODO: index should be field like this?
                 v: x[field]
             }))
         }
 
-        return arr.map((x, i) => ({
+        return arr.map((x, idx) => ({
             p: this.data[side],
             i: this.data[side].indexOf(x),
             v: x
         }))
     }
 
-    merge_objects(obj, data, new_obj = {}) {
-
-        // The only way to get Vue to update all stuff
-        // reactively is to create a brand new object.
-        // TODO: Is there a simpler approach?
-        Object.assign(new_obj, obj.v)
-        Object.assign(new_obj, data)
-        this.tv.$set(obj.p, obj.i, new_obj)
+    _merge_customizer = (objValue, srcValue, key) => {
+        if (Array.isArray(objValue) && objValue[0] && objValue[0].length >= 2 && isFinite(objValue[0][0])) {
+            return this.merge_ts(objValue, srcValue)
+        } else if (this.on_or_off_chart(key)) {
+        // TODO: depends now whether srcVal is arr or obj right?
+        }
     }
 
-    // Merge overlapping time series
+    merge_objects(obj, data) {
+        //window.console.log(` -> 11111 mergin: [${JSON.stringify(obj)}] and [${JSON.stringify(data)}]`)
+        const new_obj = Array.isArray(obj.v) ? [] : {}
+        this.tv.$set(obj.p, obj.i, mergeWith(new_obj, obj.v, data, this._merge_customizer))
+        //window.console.log(` -> 11111 postmrg: [${JSON.stringify(new_obj)}]`)
+    }
+
+    // Merge (possibly overlapping) time series;
+    // Assume that both input arrays are pre-sorted
     merge_ts(obj, data) {
 
-        // Assume that both arrays are pre-sorted
+        if (!data.length) {
+            return obj
+        } else if (!obj.length) {
+            return data
+        }
 
-        if (!data.length) return obj.v
+        const r1 = [obj[0][0], obj[obj.length - 1][0]]
+        const r2 = [data[0][0], data[data.length - 1][0]]
 
-        const r1 = [obj.v[0][0], obj.v[obj.v.length - 1][0]]
-        const r2 = [data[0][0],  data[data.length - 1][0]]
+        const o = [  // Overlap
+            Math.max(r1[0], r2[0]),
+            Math.min(r1[1], r2[1])
+        ]
 
-        // Overlap
-        const o = [Math.max(r1[0], r2[0]), Math.min(r1[1], r2[1])]
+        if (o[1] >= o[0]) {  // data overlaps
 
-        if (o[1] >= o[0]) {
+            const { od, d1, d2 } = this.ts_overlap(obj, data, o)
 
-            const { od, d1, d2 } = this.ts_overlap(obj.v, data, o)
-
-            obj.v.splice(...d1)
+            obj.splice(...d1)
             data.splice(...d2)
 
             // Dst === Overlap === Src
-            if (!obj.v.length && !data.length) {
-                this.tv.$set(obj.p, obj.i, od)
-                return obj.v
+            if (!obj.length && !data.length) {
+                return od
             }
 
             // If src is totally contained in dst
-            if (!data.length) { data = obj.v.splice(d1[0]) }
+            if (!data.length) { data = obj.splice(d1[0]) }
 
             // If dst is totally contained in src
-            if (!obj.v.length) { obj.v = data.splice(d2[0]) }
+            if (!obj.length) { obj = data.splice(d2[0]) }
 
-            this.tv.$set(
-                obj.p, obj.i, this.combine(obj.v, od, data)
-            )
+            return this.combine(obj, od, data)
 
-        } else {
+        } else {  // no overlap
 
-            this.tv.$set(
-                obj.p, obj.i, this.combine(obj.v, [], data)
-            )
+            return this.combine(obj, [], data)
         }
-
-        return obj.v
     }
 
     // TODO: review performance, move to worker
-    ts_overlap(arr1, arr2, range) {
+    ts_overlap(arr1, arr2, [t1, t2]) {
 
-        const t1 = range[0]
-        const t2 = range[1]
+        const filter_mutual_overlap = x => x[0] >= t1 && x[0] <= t2
 
-        const ts = {}  // timestamp map
-        const filter = x => x[0] >= t1 && x[0] <= t2
+        const arr1_overlap = arr1.filter(filter_mutual_overlap)
+        const arr2_overlap = arr2.filter(filter_mutual_overlap)
 
-        const a1 = arr1.filter(filter)
-        const a2 = arr2.filter(filter)
+        const ts = {}  // overlap range timestamp-to-datapoint map; note arr2 overrides timestamps of arr1
 
-        // Indices of segments
-        const id11 = arr1.indexOf(a1[0])
-        const id12 = arr1.indexOf(a1[a1.length - 1])
-        const id21 = arr2.indexOf(a2[0])
-        const id22 = arr2.indexOf(a2[a2.length - 1])
-
-        for (let i = 0; i < a1.length; i++) {
-            ts[a1[i][0]] = a1[i]
+        for (const data_point of arr1_overlap) {
+            ts[data_point[0]] = data_point
         }
 
-        for (let i = 0; i < a2.length; i++) {
-            ts[a2[i][0]] = a2[i]
+        for (const data_point of arr2_overlap) {
+            ts[data_point[0]] = data_point
         }
 
         const ts_sorted = Object.keys(ts).sort()
 
+        // Indices of segments
+        const arr1_overlap_start_index = arr1.indexOf(arr1_overlap[0])
+        const arr1_overlap_end_index = arr1.indexOf(arr1_overlap[arr1_overlap.length - 1])
+        const arr2_overlap_start_index = arr2.indexOf(arr2_overlap[0])
+        const arr2_overlap_end_index = arr2.indexOf(arr2_overlap[arr2_overlap.length - 1])
+
         return {
-            od: ts_sorted.map(x => ts[x]),
-            d1: [id11, id12 - id11 + 1],
-            d2: [id21, id22 - id21 + 1]
+            od: ts_sorted.map(x => ts[x]),  // normalized overlap range of full datapoints
+            d1: [arr1_overlap_start_index, arr1_overlap_end_index - arr1_overlap_start_index + 1],
+            d2: [arr2_overlap_start_index, arr2_overlap_end_index - arr2_overlap_start_index + 1]
         }
     }
 
@@ -583,31 +638,30 @@ export default class DCCore extends DCEvents {
     combine(dst, o, src) {
 
         const last = arr => arr[arr.length - 1][0]
+        const max_len_for_push = 100000
 
         if (!dst.length) { dst = o; o = [] }
         if (!src.length) { src = o; o = [] }
 
-        // The overlap right in the middle
+        // TODO: first if-block unreachable?
         if (src[0][0] >= dst[0][0] && last(src) <= last(dst)) {
 
             return Object.assign(dst, o)
 
-        // The overlap is on the right
         } else if (last(src) > last(dst)) {
 
             // Psh(...) is faster but can overflow the stack
-            if (o.length < 100000 && src.length < 100000) {
+            if (o.length < max_len_for_push && src.length < max_len_for_push) {
                 dst.push(...o, ...src)
                 return dst
             } else {
                 return dst.concat(o, src)
             }
 
-        // The overlap is on the left
         } else if (src[0][0] < dst[0][0]) {
 
             // Push(...) is faster but can overflow the stack
-            if (o.length < 100000 && src.length < 100000) {
+            if (o.length < max_len_for_push && src.length < max_len_for_push) {
                 src.push(...o, ...dst)
                 return src
             } else {
@@ -653,7 +707,7 @@ export default class DCCore extends DCEvents {
 
 
 // when this function is called, it must've been verified
-// by this moment that we need to be fetching data at least in one direction
+// by this moment that we need to be fetching data at least in one direction.
 const _getFetchDirection = (range, head, tail) => {
     if (range[0] === tail) {
         return 1  // we're fetching from future, ie from right hand side

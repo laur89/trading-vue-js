@@ -383,6 +383,9 @@ export default {
                 this.$refs.chart.$off('cursor-locked')
                 this.$refs.chart.$on('cursor-locked', onCursorLockChanged)
             }
+
+            // TODO: we'll need scroll-lock emit as well!
+            //this.$refs.chart.$on('scroll-lock', v => window.console.log(`>>> scroll-lock ev with value: ${v}`))
         }
     }
 }
