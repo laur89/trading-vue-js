@@ -98,11 +98,11 @@ export default {
         // Component-specific props subsets:
         grid_props() {
             const id = this.$props.grid_id
-            let p = Object.assign({}, this.$props.common)
+            const p = Object.assign({}, this.$props.common)
 
             // Split offchart data between offchart grids
             if (id > 0) {
-                let all = p.data
+                const all = p.data
                 p.data = [p.data[id - 1]]
                 // Merge offchart overlays with custom ids with
                 // the existing onse (by comparing the grid ids)
@@ -118,7 +118,7 @@ export default {
         },
         sidebar_props() {
             const id = this.$props.grid_id
-            let p = Object.assign({}, this.$props.common)
+            const p = Object.assign({}, this.$props.common)
             p.width = p.layout.grids[id].sb
             p.height = p.layout.grids[id].height
             p.y_transform = p.y_ts[id]
@@ -127,17 +127,17 @@ export default {
         },
         section_values() {
             const id = this.$props.grid_id
-            let p = Object.assign({}, this.$props.common)
+            const p = Object.assign({}, this.$props.common)
             p.width = p.layout.grids[id].width
             return p.cursor.values[id]
         },
         legend_props() {
             const id = this.$props.grid_id
-            let p = Object.assign({}, this.$props.common)
+            const p = Object.assign({}, this.$props.common)
 
             // Split offchart data between offchart grids
             if (id > 0) {
-                let all = p.data
+                const all = p.data
                 p.offchart = all
                 p.data = [p.data[id - 1]]
                 p.data.push(...all.filter(
@@ -163,7 +163,7 @@ export default {
                     this.rerender++
                 }
 
-                if(val.data.length !== old_val.data.length) {
+                if (val.data.length !== old_val.data.length) {
                     // Look at this nasty trick!
                     this.rerender++
                 }
