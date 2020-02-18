@@ -20,10 +20,12 @@ export default {
         },
         draw(ctx) {
 
+            let cnv;
+
             // If data === main candlestick data
             // render as main chart:
             if (this.$props.sub === this.$props.data) {
-                var cnv = {
+                cnv = {
                     candles: this.$props.layout.candles,
                     volume: this.$props.layout.volume,
                 }
@@ -33,12 +35,12 @@ export default {
             }
 
             if (this.show_volume) {
-                for (var v of cnv.volume) {
+                for (const v of cnv.volume) {
                     new Volbar(this, ctx, v)
                 }
             }
 
-            for (var c of cnv.candles) {
+            for (const c of cnv.candles) {
                 new Candle(this, ctx, c)
             }
 

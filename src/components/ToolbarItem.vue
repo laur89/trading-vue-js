@@ -23,10 +23,11 @@ export default {
             if (this.$props.data.type === 'System:Splitter') {
                 return this.splitter
             }
-            let conf = this.$props.config
-            let im = conf.TB_ITEM_M
-            let m = (conf.TOOLBAR - conf.TB_ICON) * 0.5 - im
-            let s = conf.TB_ICON + im * 2
+            const conf = this.$props.config
+            const im = conf.TB_ITEM_M
+            const m = (conf.TOOLBAR - conf.TB_ICON) * 0.5 - im
+            const s = conf.TB_ICON + im * 2
+
             return {
                 'width': `${s}px`,
                 'height': `${s}px`,
@@ -38,9 +39,10 @@ export default {
             if (this.$props.data.type === 'System:Splitter') {
                 return {}
             }
-            let conf = this.$props.config
-            let br = conf.TB_ICON_BRI
-            let im = conf.TB_ITEM_M
+            const conf = this.$props.config
+            const br = conf.TB_ICON_BRI
+            const im = conf.TB_ITEM_M
+
             return {
                 'background-image': `url(${this.$props.data.icon})`,
                 'width': '25px',
@@ -50,12 +52,13 @@ export default {
             }
         },
         splitter() {
-            let conf = this.$props.config
-            let colors = this.$props.colors
-            let c = colors.colorGrid
-            let im = conf.TB_ITEM_M
-            let m = (conf.TOOLBAR - conf.TB_ICON) * 0.5 - im
-            let s = conf.TB_ICON + im * 2
+            const conf = this.$props.config
+            const colors = this.$props.colors
+            const c = colors.colorGrid
+            const im = conf.TB_ITEM_M
+            const m = (conf.TOOLBAR - conf.TB_ICON) * 0.5 - im
+            const s = conf.TB_ICON + im * 2
+
             return {
                 'width': `${s}px`,
                 'height': '1px',

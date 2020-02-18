@@ -20,8 +20,8 @@ export default {
     render(h) { return h() },
     methods: {
         keydown (event) {
-            for (var id in this._listeners) {
-                let l = this._listeners[id]
+            for (let id in this._listeners) {
+                const l = this._listeners[id]
                 if (l && l.keydown) {
                     l.keydown(event)
                 } else {
@@ -30,8 +30,8 @@ export default {
             }
         },
         keyup (event) {
-            for (var id in this._listeners) {
-                let l = this._listeners[id]
+            for (let id in this._listeners) {
+                const l = this._listeners[id]
                 if (l && l.keyup) {
                     l.keyup(event)
                 } else {
@@ -40,8 +40,8 @@ export default {
             }
         },
         keypress (event) {
-            for (var id in this._listeners) {
-                let l = this._listeners[id]
+            for (let id in this._listeners) {
+                const l = this._listeners[id]
                 if (l && l.keypress) {
                     l.keypress(event)
                 } else {
