@@ -18,15 +18,19 @@ export default class DataCube extends DCCore {
             rangeToQuery: [],
             timeframe: 0,  // millisec
 
-            loading: false,  // whether we're currently in process of fetching data for a range; TODO: rename as 'fetching'
-            scrollLock: false,
+            loading: true,  // whether we're currently in process of fetching data for a range; TODO: rename as 'fetching'
+            // note loading is initialized as 'true', as we want to wait 'til first batch of data is fetched;
+
+            cursorLock: false,
+            scrollLock: false,  // TODO: unused atm
 
             isBeginning: false,  // whether we've reached the beginning of chart - no earlier data is avail
             isEnd: false,  // whether we've reached the end of chart - no later data is or will be avail
             isHead: false,  // whether we've subscribed to automatically receive chart updates
 
-            maxDatapoints: 10000,  // max number of datapoints allowed in memory; when exceeded, we start truncating
-            fetchLookAhead: 1000  // how many datapoints should we fetch ahead as a buffer
+            maxDatapoints: 10000,  // max number of datapoints allowed in memory; when exceeded, we start truncating; eg 48h is 2880min
+            fetchLookAhead: 1000,  // how many datapoints should we fetch ahead as a buffer
+            fetchTriggerMargin: 400  // how many datapoints before the in-memory limit should fetch be triggered; keep it smaller than fetchLookAhead
         }
 
         this.data = data
@@ -35,9 +39,7 @@ export default class DataCube extends DCCore {
     // Add new overlay
     add(side, overlay) {
 
-        if (side !== 'onchart' && side !== 'offchart') {
-            return
-        }
+        if (!this.on_or_off_chart(side)) return
 
         this.data[side].push(overlay)
         this.update_ids()
@@ -78,22 +80,35 @@ export default class DataCube extends DCCore {
 
         const objects = this.get_by_query(query)
 
-        for (const obj of objects) {
-            if (Array.isArray(obj.v)) {
-                if (!Array.isArray(data)) continue
-                // If array is a timeseries, merge it by timestamp,
-                // else merge by item index:
-                if (obj.v[0] && obj.v[0].length >= 2) {
-                    this.merge_ts(obj, data)
-                } else {
-                    this.merge_objects(obj, data, [])
-                }
-            } else if (obj.v !== null && typeof obj.v === 'object') {
+        if (Array.isArray(data) && this.on_or_off_chart(query)) {
+            this._merge_on_off(query, objects, data)
+        } else {
+            for (const obj of objects) {
                 this.merge_objects(obj, data)
             }
         }
 
         this.update_ids()
+    }
+
+    _merge_on_off(side, objects, data) {
+        const overlays_to_add = []
+
+        for (const d of data) {
+            const obj = objects.find(o => o.v.name === d.name)
+
+            if (obj === undefined) {
+                // couldn't find existing overlay with same name;
+                // assuming it's new one that needs to be added;
+                overlays_to_add.push(d)
+            } else {
+                this.merge_objects(obj, d)
+            }
+        }
+
+        // make sure to add new ones as last step in order
+        // not to mess up indices of already existing ones:
+        overlays_to_add.forEach(ov => this.add(side, ov))
     }
 
     // Remove an overlay by query (id/type/name/...)
@@ -180,7 +195,7 @@ export default class DataCube extends DCCore {
     // Show indicator
     show(query) {
         if (query === 'offchart' || query === 'onchart') {
-             query += '.'
+            query += '.'
         } else if (query === '.') {
             query = ''
         }
@@ -191,33 +206,47 @@ export default class DataCube extends DCCore {
     // Hide indicator
     hide(query) {
         if (query === 'offchart' || query === 'onchart') {
-             query += '.'
+            query += '.'
         } else if (query === '.') {
-             query = ''
+            query = ''
         }
 
         this.merge(query + '.settings', { display: false })
     }
 
+    /**
+     *
+     * @param loadForRange
+     * @param initData
+     * @param onRangeChanged
+     * @param onCursorLockChanged
+     * @param onLiveData
+     * @param subscribe
+     * @param unsubscribe
+     */
     setDataHandlers({
-                        loadForRange = null,
+                        loadForRange,
+                        initData,
                         onRangeChanged = this.range_changed,
                         onCursorLockChanged = this.onCursorLockChanged,
                         onLiveData = this.received_live_data,
-                        subscribe = this.subscribe,
-                        unsubscribe = this.unsubscribe,
+                        subscribe,
+                        unsubscribe,
                     } = {}) {
         this.dynamicData.loadForRange = Utils.get_fun_or_null(loadForRange)
         subscribe = Utils.get_fun_or_null(subscribe)
         this.dynamicData.sub = subscribe === null ? null : subscribe.bind(null, Utils.get_fun_or_null(onLiveData))
         this.dynamicData.unsub = Utils.get_fun_or_null(unsubscribe)
 
-        // allow vue to init, register listeners at next tick:
-        setTimeout(() => {
+        // allow vue to init, register listeners at next tick: (use setTimeout if not pulling data here)
+        initData = Utils.get_fun_or_null(initData)
+        if (initData !== null) {
+            initData().then(data => {
                 this.tv.register_range_changed_listener(Utils.get_fun_or_null(onRangeChanged))
                 this.tv.register_cursor_lock_listener(Utils.get_fun_or_null(onCursorLockChanged))
-            }, 0
-        )
-    }
 
+                this.chunk_loaded(data, 0)
+            })
+        }
+    }
 }

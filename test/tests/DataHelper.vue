@@ -41,6 +41,7 @@ export default {
             })
             // Register onrange callback & And a stream of trades
             this.chart.setDataHandlers({
+                initData: async () => [],
                 loadForRange: this.load_chunk
             })
 
