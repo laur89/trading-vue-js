@@ -21,13 +21,13 @@ import RangeTool from "./overlays/RangeTool.vue"
 
 export default {
     name: 'Grid',
+    components: { Crosshair, KeyboardListener },
+    mixins: [Canvas],
     props: [
         'sub', 'layout', 'range', 'interval', 'cursor', 'colors', 'overlays',
         'width', 'height', 'data', 'grid_id', 'y_transform', 'font', 'tv_id',
         'config', 'meta'
     ],
-    mixins: [Canvas],
-    components: { Crosshair, KeyboardListener },
     created() {
         // List of all possible overlays (builtin + custom)
         this._list = [
@@ -39,18 +39,20 @@ export default {
 
         // We need to know which components we will use.
         // Custom overlay components overwrite built-ins:
-        let tools = []
+        const tools = []
         this._list.forEach((x, i) => {
-            let use_for = x.methods.use_for()
+            const use_for = x.methods.use_for()
             if (x.methods.tool) tools.push({
-                use_for, info: x.methods.tool()
+                use_for,
+                info: x.methods.tool()
             })
             use_for.forEach(indicator => {
                 this._registry[indicator] = i
             })
         })
         this.$emit('custom-event', {
-            event: 'register-tools', args: tools
+            event: 'register-tools',
+            args: tools
         })
     },
     mounted() {
@@ -104,9 +106,9 @@ export default {
         get_overlays(h) {
             // Distributes overlay data & settings according
             // to this._registry; returns compo list
-            let comp_list = [], count = {}
+            const comp_list = [], count = {}
 
-            for (var d of this.$props.data) {
+            for (let d of this.$props.data) {
                 let comp = this._list[this._registry[d.type]]
                 if (comp) {
                     comp_list.push({

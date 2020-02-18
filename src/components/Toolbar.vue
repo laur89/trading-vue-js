@@ -20,29 +20,31 @@ import ToolbarItem from './ToolbarItem.vue'
 
 export default {
     name: 'Toolbar',
+    components: { ToolbarItem },
     props: [
         'data', 'height', 'colors', 'tv_id', 'config'
     ],
-    components: { ToolbarItem },
     mounted() {
 
     },
     methods: {
         selected(tool) {
             this.$emit('custom-event', {
-                event:'tool-selected', args: [tool.type]
+                event: 'tool-selected',
+                args: [tool.type]
             })
         }
     },
     computed: {
         styles() {
-            let colors = this.$props.colors
-            let b = this.$props.config.TB_BORDER
-            let w = this.$props.config.TOOLBAR - b
-            let c = colors.colorGrid
-            let cb = colors.colorTbBack || colors.colorBack
-            let brd = colors.colorTbBorder || colors.colorScale
-            let st = this.$props.config.TB_B_STYLE
+            const colors = this.$props.colors
+            const b = this.$props.config.TB_BORDER
+            const w = this.$props.config.TOOLBAR - b
+            const c = colors.colorGrid
+            const cb = colors.colorTbBack || colors.colorBack
+            const brd = colors.colorTbBorder || colors.colorScale
+            const st = this.$props.config.TB_B_STYLE
+
             return {
                 'width': `${w}px`,
                 'height': `${this.$props.height-3}px`,
