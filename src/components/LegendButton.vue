@@ -25,9 +25,9 @@ export default {
             return id + '.png'
         },
         uuid() {
-            let tv = this.$props.tv_id
-            let gr = this.$props.grid_id
-            let ov = this.$props.ov_id
+            const tv = this.$props.tv_id
+            const gr = this.$props.grid_id
+            const ov = this.$props.ov_id
             return `${tv}-btn-g${gr}-${ov}`
         },
         data_type() {

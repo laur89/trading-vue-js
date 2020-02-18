@@ -37,16 +37,16 @@ import TI from './js/ti_mapping.js'
 
 export default {
     name: 'Chart',
-    props: [
-        'title_txt', 'data', 'width', 'height', 'font', 'colors',
-        'overlays', 'tv_id', 'config', 'buttons', 'toolbar', 'ib'
-    ],
-    mixins: [Shaders],
     components: {
         GridSection,
         Botbar,
         Keyboard
     },
+    mixins: [Shaders],
+    props: [
+        'title_txt', 'data', 'width', 'height', 'font', 'colors',
+        'overlays', 'tv_id', 'config', 'buttons', 'toolbar', 'ib'
+    ],
     created() {
 
         // Context for text measurements
@@ -97,7 +97,7 @@ export default {
             this.interval = this.$props.ib ? 1 : this.interval_ms
         },
         set_ytransform(s) {
-            let obj = this.y_transforms[s.grid_id] || {}
+            const obj = this.y_transforms[s.grid_id] || {}
             Object.assign(obj, s)
             this.$set(this.y_transforms, s.grid_id, obj)
             this.update_layout()
@@ -109,10 +109,14 @@ export default {
             const l = this.ohlcv.length - 1
 
             if (this.ohlcv.length < 2) return
+
+            let s, d
             if (this.ohlcv.length <= dl) {
-                var s = 0, d = ml
+                s = 0
+                d = ml
             } else {
-                s = l - dl, d = 0.5
+                s = l - dl
+                d = 0.5
             }
             if (!this.$props.ib) {
                 Utils.overwrite(this.range, [
@@ -228,7 +232,7 @@ export default {
     computed: {
         // Component-specific props subsets:
         main_section() {
-            let p = Object.assign({}, this.common_props())
+            const p = Object.assign({}, this.common_props())
             p.data = this.overlay_subset(this.onchart)
             p.data.push({
                 type: this.chart.type || 'Candles',
@@ -241,13 +245,13 @@ export default {
             return p
         },
         sub_section() {
-            let p = Object.assign({}, this.common_props())
+            const p = Object.assign({}, this.common_props())
             p.data = this.overlay_subset(this.offchart)
             p.overlays = this.$props.overlays
             return p
         },
         botbar_props() {
-            let p = Object.assign({}, this.common_props())
+            const p = Object.assign({}, this.common_props())
             p.width = p.layout.botbar.width
             p.height = p.layout.botbar.height
             p.rerender = this.rerender
@@ -274,7 +278,7 @@ export default {
                 Utils.fast_filter_i : Utils.fast_filter
         },
         styles() {
-            let w = this.$props.toolbar ? this.$props.config.TOOLBAR : 0
+            const w = this.$props.toolbar ? this.$props.config.TOOLBAR : 0
             return { 'margin-left': `${w}px` }
         },
         meta() {

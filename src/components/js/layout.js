@@ -82,6 +82,7 @@ function Layout(params) {
                 c: Math.floor(p[4] * self.A + self.B),
                 raw: p
             })
+
             // Clear volume bar if there is a time gap
             if (sub[i-1] && p[0] - sub[i-1][0] > interval) {
                 prev = null
@@ -101,7 +102,7 @@ function Layout(params) {
 
     // Main grid
     const hs = grid_hs()
-    let specs = {
+    const specs = {
         sub, interval, range, ctx, $p, layers_meta,
         ti_map, height: hs[0], y_t: y_ts[0],
         grid: mgrid
@@ -117,9 +118,10 @@ function Layout(params) {
         gms.push(new GridMaker(i + 1, specs, gms[0].get_layout()))
     }
 
-    // Max sidebar among all grinds
+    // Max sidebar among all grids
     const sb = Math.max(...gms.map(x => x.get_sidebar()))
-    let grids = [], offset = 0
+    const grids = []
+    let offset = 0
 
     for (let i = 0; i < gms.length; i++) {
         gms[i].set_sidebar(sb)
