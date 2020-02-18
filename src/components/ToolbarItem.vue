@@ -89,10 +89,11 @@ export default {
             if (this.$props.data.type === 'System:Splitter') {
                 return this.splitter
             }
-            let conf = this.$props.config
-            let im = conf.TB_ITEM_M
-            let m = (conf.TOOLBAR - conf.TB_ICON) * 0.5 - im
-            let s = conf.TB_ICON + im * 2
+            const conf = this.$props.config
+            const im = conf.TB_ITEM_M
+            const m = (conf.TOOLBAR - conf.TB_ICON) * 0.5 - im
+            const s = conf.TB_ICON + im * 2
+
             let b = this.exp_hover ? 0 : 3
             return {
                 'width': `${s}px`,

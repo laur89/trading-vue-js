@@ -22,16 +22,17 @@ import ToolbarItem from './ToolbarItem.vue'
 
 export default {
     name: 'Toolbar',
+    components: { ToolbarItem },
     props: [
         'data', 'height', 'colors', 'tv_id', 'config'
     ],
-    components: { ToolbarItem },
     mounted() {
     },
     methods: {
         selected(tool) {
             this.$emit('custom-event', {
-                event:'tool-selected', args: [tool.type]
+                event: 'tool-selected',
+                args: [tool.type]
             })
             if (tool.group) {
                 // TODO: emit the sub map to DC (save)

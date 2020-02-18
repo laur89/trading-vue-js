@@ -110,7 +110,6 @@ function GridMaker(id, params, master_grid = null) {
         self.sb = ctx.measureText(str).width
         self.sb = Math.max(Math.floor(self.sb), $p.config.SBMIN)
         self.sb = Math.min(self.sb, $p.config.SBMAX)
-
     }
 
     // Calculate $ precision for the Y-axis
@@ -194,7 +193,7 @@ function GridMaker(id, params, master_grid = null) {
 
     }
 
-    // Select nearest good-loking t step (m is target scale)
+    // Select nearest good-looking t step (m is target scale)
     function time_step() {
         const k = ti_map.ib ? 60000 : 1
         const xrange = (range[1] - range[0]) * k
@@ -202,7 +201,7 @@ function GridMaker(id, params, master_grid = null) {
         return Utils.nearest_a(m, TIMESCALES)[1] / k
     }
 
-    // Select nearest good-loking $ step (m is target scale)
+    // Select nearest good-looking $ step (m is target scale)
     function dollar_step() {
         const yrange = self.$_hi - self.$_lo
         const m = yrange * ($p.config.GRIDY / height)
