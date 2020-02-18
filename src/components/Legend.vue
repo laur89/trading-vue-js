@@ -43,10 +43,10 @@ import ButtonGroup from './ButtonGroup.vue'
 
 export default {
     name: 'ChartLegend',
+    components: { ButtonGroup },
     props: [
         'common', 'values', 'grid_id', 'meta_props'
     ],
-    components: { ButtonGroup },
     computed: {
         ohlcv() {
             if (!this.$props.values || !this.$props.values.ohlcv) {
@@ -67,7 +67,8 @@ export default {
         indicators() {
             const values = this.$props.values
             const f = this.format
-            var types = {}
+            const types = {}
+
             return this.json_data.filter(
                 x => x.settings.legend !== false && !x.main
             ).map(x => {
@@ -84,7 +85,7 @@ export default {
             })
         },
         calc_style() {
-            let top = this.layout.height > 150 ? 10 : 5
+            const top = this.layout.height > 150 ? 10 : 5
             return {
                 top: `${this.layout.offset + top}px`,
             }
@@ -99,7 +100,7 @@ export default {
     },
     methods: {
         format(id, values) {
-            let meta = this.$props.meta_props[id] || {}
+            const meta = this.$props.meta_props[id] || {}
             // Matches Overlay.data_colors with the data values
             // (see Spline.vue)
             if (!values[id]) return this.n_a(1)

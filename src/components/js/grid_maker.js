@@ -85,7 +85,6 @@ function GridMaker(id, params, master_grid = null) {
 
         self.sb = ctx.measureText(str).width
         self.sb = Math.max(Math.floor(self.sb), $p.config.SBMIN)
-
     }
 
     // Calculate $ precision for the Y-axis
@@ -94,13 +93,14 @@ function GridMaker(id, params, master_grid = null) {
         let max_r = 0, max_l = 0
 
         // Get max lengths of integer and fractional parts
-        let l, r;
         data.forEach(x => {
             const str = x[1].toString()
+            let l, r;
+
             if (x[1] < 0.000001) {
                 // Parsing the exponential form. Gosh this
                 // smells trickily
-                const [ls, rs] = str.split('e-')
+                const [ls, rs] = str.split('e-');
                 [l, r] = ls.split('.')
                 if (!r) r = ''
                 r = { length: r.length + parseInt(rs) || 0 }
@@ -152,7 +152,7 @@ function GridMaker(id, params, master_grid = null) {
         self.B = -self.$_hi * self.A
     }
 
-    // Select nearest good-loking t step (m is target scale)
+    // Select nearest good-looking t step (m is target scale)
     function time_step() {
         const xrange = range[1] - range[0]
         const m = xrange * ($p.config.GRIDX / $p.width)
@@ -160,7 +160,7 @@ function GridMaker(id, params, master_grid = null) {
         return Utils.nearest_a(m, TIMESCALES)[1]
     }
 
-    // Select nearest good-loking $ step (m is target scale)
+    // Select nearest good-looking $ step (m is target scale)
     function dollar_step() {
         const yrange = self.$_hi - self.$_lo
         const m = yrange * ($p.config.GRIDY / height)
@@ -168,7 +168,7 @@ function GridMaker(id, params, master_grid = null) {
         const d = Math.pow(10, p)
         const s = $SCALES.map(x => x * d)
 
-        // TODO: center the range (look at RSI for eaxmple,
+        // TODO: center the range (look at RSI for example,
         // it looks ugly when "80" is near the top)
         return Utils.strip(Utils.nearest_a(m, s)[1])
     }

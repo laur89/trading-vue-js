@@ -19,13 +19,13 @@ import LegendButton from './LegendButton.vue'
 
 export default {
     name: 'ButtonGroup',
+    components: {
+        LegendButton
+    },
     props: [
         'buttons', 'tv_id', 'ov_id', 'grid_id', 'index',
         'display'
     ],
-    components: {
-        LegendButton
-    },
     methods: {
         button_click(event) {
             this.$emit('legend-button-click', event)
