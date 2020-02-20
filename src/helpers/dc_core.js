@@ -26,8 +26,11 @@ export default class DCCore extends DCEvents {
         if (!this.data.hasOwnProperty('chart')) {
             this.tv.$set(this.data, 'chart', {
                 type: 'Candles',
-                data: this.data.ohlcv || []  // TODO remove 'this.data.ohlcv' once old data format is fully deprecated
+                data: this.data.ohlcv || [],  // TODO remove 'this.data.ohlcv' once old data format is fully deprecated
+                settings: {}
             })
+        } else if (!this.data.chart.hasOwnProperty('settings')) {
+            this.tv.$set(this.data.chart, 'settings', {})
         }
 
         if (!this.data.hasOwnProperty('onchart')) {
@@ -36,10 +39,6 @@ export default class DCCore extends DCEvents {
 
         if (!this.data.hasOwnProperty('offchart')) {
             this.tv.$set(this.data, 'offchart', [])
-        }
-
-        if (!this.data.chart.settings) {
-            this.tv.$set(this.data.chart, 'settings', {})
         }
 
         // Remove ohlcv cuz we have Data v1.1
@@ -336,7 +335,7 @@ export default class DCCore extends DCEvents {
 
             const i = data[k]
             const val = Array.isArray(i) ? i : [i]
-            if (!k.includes('.data')) k += '.data'
+            if (!k.includes('.data')) k += '.data'  // TODO: can we replace !includes() w/ !endsWith()?
             this.merge(k, [[t, ...val]])
         }
     }
@@ -348,9 +347,9 @@ export default class DCCore extends DCEvents {
     // Returns array of objects matching query.
     // Object contains { parent, index, value }
     // TODO: query caching
-    get_by_query(query, chuck) {
+    get_by_query(query, chuck = false) {
 
-        let tuple = query.split('.')
+        const tuple = query.split('.')
         let result;
 
         switch (tuple[0]) {
@@ -361,7 +360,7 @@ export default class DCCore extends DCEvents {
             case 'offchart':
                 result = this.query_search(query, tuple)
                 break
-            default:
+            default: {
                 /* TODO: Should get('.') return also the chart? */
                 /*let ch = this.chart_as_query([
                     'chart',
@@ -379,9 +378,10 @@ export default class DCCore extends DCEvents {
                 ])
                 result = [/*ch[0],*/ ...onChart, ...offChart]
                 break
+            }
         }
 
-        return result.filter(x => !x.v.locked || chuck)
+        return chuck ? result : result.filter(x => !x.v.locked)
     }
 
     chart_as_piv([_, field]) {
