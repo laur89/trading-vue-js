@@ -54,7 +54,7 @@ export default class DataCube extends DCCore {
 
     // Get first object matching the query
     get_one(query) {
-        return this.get_by_query(query).map(x => x.v)[0]
+        return this.get_by_query(query)[0].v
     }
 
     // Set data (reactively)
