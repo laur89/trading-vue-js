@@ -132,7 +132,6 @@ function Layout(params) {
 
     const self = grids[0]
 
-    // TODO: candles_n_vol() already declared in this file
     candles_n_vol()
 
     return {
