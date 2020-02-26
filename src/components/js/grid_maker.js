@@ -256,7 +256,6 @@ function GridMaker(id, params, master_grid = null) {
         self.height = height
     }
 
-    // TODO: calc_sidebar() already declared in this file
     calc_sidebar()
 
     return {
