@@ -35,7 +35,7 @@ function GridMaker(id, params, master_grid = null) {
 
         if (!master_grid) {
             // $ candlestick range
-            if (y_range_fn) {
+            if (typeof y_range_fn === 'function') {
                 var [hi, lo] = y_range_fn(hi, lo)
             } else {
                 hi = -Infinity, lo = Infinity
@@ -55,7 +55,7 @@ function GridMaker(id, params, master_grid = null) {
                     if (v < lo) lo = v
                 }
             }
-            if (y_range_fn) { var [hi, lo, exp] = y_range_fn(hi, lo) }
+            if (typeof y_range_fn === 'function') { var [hi, lo, exp] = y_range_fn(hi, lo) }
         }
 
         // Fixed y-range in non-auto mode
