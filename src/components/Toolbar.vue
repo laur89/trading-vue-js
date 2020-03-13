@@ -1,7 +1,8 @@
 
 <template>
-    <div class="trading-vue-toolbar" :style="styles"
-        :key="tool_count">
+    <div class="trading-vue-toolbar"
+         :key="tool_count"
+         :style="styles">
         <toolbar-item v-for="(tool, i) in data.tools"
             v-if="tool.icon"
             @item-selected="selected"
@@ -47,7 +48,7 @@ export default {
 
             return {
                 'width': `${w}px`,
-                'height': `${this.$props.height-3}px`,
+                'height': `${this.$props.height}px`,
                 'background-color': cb,
                 'border-right': `${b}px ${st} ${brd}`
             }
@@ -65,7 +66,9 @@ export default {
             deep: true
         }
     },
-    data() { return { tool_count: 0 } }
+    data() {
+        return { tool_count: 0 }
+    }
 }
 
 </script>
