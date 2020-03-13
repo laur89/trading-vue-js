@@ -5,14 +5,16 @@ import Utils from '../../stuff/utils.js'
 
 class CursorUpdater {
 
-    constructor(comp) {
-        this.comp = comp, this.grids = comp._layout.grids,
-        this.cursor = comp.cursor
+    constructor(chart) {
+        this.comp = chart
+        this.grids = chart._layout.grids
+        this.cursor = chart.cursor
     }
 
     sync(e) {
         this.cursor.grid_id = e.grid_id
         let once = true
+
         for (const grid of this.grids) {
             const c = this.cursor_data(grid, e)
             if (!this.cursor.locked) {
@@ -25,6 +27,7 @@ class CursorUpdater {
                     this.comp.$set(this.cursor.values, grid.id, c.values)
                 }
             }
+
             if (grid.id !== e.grid_id) continue
             this.cursor.x = grid.t2screen(this.cursor.t)
             this.cursor.y = c.y

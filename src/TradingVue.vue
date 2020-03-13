@@ -7,18 +7,19 @@
             width: this.width+'px',
             height: this.height+'px'}">
         <toolbar v-if="toolbar"
-            v-on:custom-event="custom_event"
+            @custom-event="on_custom_event"
             v-bind="chart_props"
-            v-bind:config="chart_config">
+            :config="chart_config">
         </toolbar>
-        <chart :key="reset"
+        <chart
+            :key="reset"
             ref="chart"
             v-bind="chart_props"
-            v-bind:tv_id="id"
-            v-bind:config="chart_config"
-            v-on:custom-event="custom_event"
-            v-on:range-changed="on_range_changed"
-            v-on:legend-button-click="legend_button">
+            :tv_id="id"
+            :config="chart_config"
+            @custom-event="on_custom_event"
+            @range-changed="on_range_changed"
+            @legend-button-click="on_legend_button">
         </chart>
     </div>
 </template>
@@ -194,7 +195,7 @@ export default {
         return { reset: 0 }
     },
     beforeDestroy() {
-        this.custom_event({ event: 'before-destroy' })
+        this.on_custom_event({ event: 'before-destroy' })
     },
     methods: {
         resetChart(resetRange = true) {
@@ -217,10 +218,10 @@ export default {
         getCursor() {
             return this.$refs.chart.cursor
         },
-        legend_button(event) {
+        on_legend_button(event) {
             this.$emit('legend-button-click', event)
         },
-        custom_event(d) {
+        on_custom_event(d) {
             if (d.hasOwnProperty('args')) {
                 this.$emit(d.event, ...d.args)
             } else {

@@ -7,8 +7,8 @@ export default function(self, range) {
     Object.assign(self, {
         // Time to screen coordinates
         t2screen: t => {
-            const dt = range[1] - range[0]
-            const r = self.spacex / dt
+            const delta_range = range[1] - range[0]
+            const r = self.spacex / delta_range
             return Math.floor((t - range[0]) * r) - 0.5
         },
         // $ to screen coordinates
@@ -32,8 +32,8 @@ export default function(self, range) {
         },
         // Screen-X to timestamp
         screen2t: x => {
-            const dt = range[1] - range[0]
-            const r = self.spacex / dt
+            const delta_range = range[1] - range[0]
+            const r = self.spacex / delta_range
             return Math.floor(range[0] + x / r)
         },
         // $-axis nearest step
@@ -50,5 +50,4 @@ export default function(self, range) {
     })
 
     return self
-
 }
