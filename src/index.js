@@ -5,8 +5,7 @@ import Utils from './stuff/utils.js'
 import Constants from './stuff/constants.js'
 import Candle from './components/primitives/candle.js'
 import Volbar from './components/primitives/volbar.js'
-import { layout_cnv, layout_vol } from
-    './components/js/layout_cnv.js'
+import { layout_cnv, layout_vol } from './components/js/layout_cnv.js'
 
 
 TradingVue.install = function (Vue) {

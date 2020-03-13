@@ -1,4 +1,4 @@
-// Canvas context for text measurments
+// Canvas context for text measurements
 
 function Context($p) {
 

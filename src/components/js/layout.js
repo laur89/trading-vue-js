@@ -7,118 +7,153 @@
 
 import GridMaker from './grid_maker.js'
 
-function Layout(params) {
+/**
+ *
+ * @param _chart  Chart.vue instance
+ * @returns {{botbar: {offset: number, width: *, xs: (*|[]), height: number}, grids: []}}
+ * @constructor
+ */
+function Layout(_chart) {
 
-    let {
-        chart, sub, offsub, interval, range, ctx, layers_meta,
-        $props: $p, y_transforms: y_ts
-    } = params
+    const {
+        chart, sub, interval, range, ctx, layers_meta,
+        $props: $p,
+        y_transforms: y_ts,
+    } = _chart
 
-    offsub = offsub.filter((x, i) => {
+    const offsub = _chart.offsub.filter((x, i) => {  // offchart subset
         // Skip offchart overlays with custom grid id,
         // because they will be merged with the existing grids
         return !(x.grid && x.grid.id)
     })
 
-    // Splits space between main chart
-    // and offchart indicator grids
+    /**
+     * Splits/divides the vertical space between main
+     * chart & offchart indicator grids.
+     *
+     * @returns {Number[]} grid heights of actual px,
+     *          eg [main_chart_h, offchart_1_h, ..., offchart_n_h]
+     */
     function grid_hs() {
 
-        const height = $p.height - $p.config.BOTBAR
+        const height = $p.height - $p.config.BOTBAR  // total height minus bottom bar height
 
         // When at least one height defined (default = 1),
         // Pxs calculated as: (sum of weights) / number
+        //
+        // looks like grid.height is really a coefficient, not absolute value
         const grid = chart.grid || {}
-        if (grid.height || offsub.find(x => x.grid.height)) {
+        if (grid.height || offsub.some(x => x.grid.height)) {
+            // note we call this if _any_ grid height coefficient was defined:
             return weighted_hs(grid, height)
         }
 
-        const n = offsub.length
-        const off_h = (2 * Math.sqrt(n) / 7) / (n || 1)
+        const offsub_len = offsub.length
+        // TODO: 7? just a random value that looks ok?
+        let off_h = (2 * Math.sqrt(offsub_len) / 7) / (offsub_len === 0 ? 1 : offsub_len)  // = offchart height coefficient?
 
-        // Offchart grid height
-        const px = Math.floor(height * off_h)
+        // single offchart grid height:
+        off_h = Math.floor(height * off_h)
 
         // Main grid height
-        const m = height - px * n
-        return [m].concat(Array(n).fill(px))
+        const m = [height - off_h * offsub_len]
+        return m.concat(Array(offsub_len).fill(off_h))
     }
 
+    /**
+     * Get weighted heights?   TODO unsure
+     * @param {Object} grid main chart grid
+     * @param height {Number} total chart height minus bottom bar height;
+     * @returns {number[]}
+     */
     function weighted_hs(grid, height) {
-        let hs = [{grid}, ...offsub].map(x => x.grid.height || 1)
-        let sum = hs.reduce((a, b) => a + b, 0)
-        hs = hs.map(x => Math.floor((x / sum) * height))
+        let heights = [{grid}, ...offsub].map(x => x.grid.height || 1)  // here it's really list of height coefficients, later on will be assigned list of heights
+        let sum = heights.reduce((a, b) => a + b, 0)
+        heights = heights.map(x => Math.floor((x / sum) * height))
 
         // Refine the height if Math.floor decreased px sum
-        sum = hs.reduce((a, b) => a + b, 0)
-        for (let i = 0; i < height - sum; i++) hs[i % hs.length]++
-        return hs
+        sum = heights.reduce((a, b) => a + b, 0)  // total heights as sum of partials
+        for (let i = 0; i < height - sum; i++) heights[i % heights.length]++  // randomly grow individual grids' height 'til we match the input height param
+        return heights
     }
 
+    /**
+     * time to x coord
+     * @param t
+     * @returns {number}
+     */
     function t2screen(t) {
-        const dt = range[1] - range[0]
-        const r = self.spacex / dt
+        const delta_range = range[1] - range[0]
+        const r = self.spacex / delta_range
         return Math.floor((t - range[0]) * r)
     }
 
+    /**
+     * calculate candles & positions
+     *
+     * TODO: unsure about the vol-bar clearing logic
+     */
     function candles_n_vol() {
         self.candles = []
         self.volume = []
 
-        const maxv = Math.max(...sub.map(x => x[5]))
-        const vs = $p.config.VOLSCALE * $p.height / maxv
+        const max_vol = Math.max(...sub.map(x => x[5]))
+        const vs = $p.config.VOLSCALE * $p.height / max_vol
+        const vol_splitter = self.px_step > 5 ? 1 : 0
 
-        let splitter = self.px_step > 5 ? 1 : 0
         let prev = null
 
         for (let i = 0; i < sub.length; i++) {
             const p = sub[i]
-            const mid = t2screen(p[0])
+            const mid_x = t2screen(p[0])
             self.candles.push({
-                x: mid,
+                x: mid_x,
                 w: self.px_step * $p.config.CANDLEW,
                 o: p[1] * self.A + self.B,
                 h: p[2] * self.A + self.B,
                 l: p[3] * self.A + self.B,
                 c: p[4] * self.A + self.B,
-                raw: p
+                raw: p  // raw candle entity
             })
 
             // Clear volume bar if there is a time gap
             if (sub[i-1] && p[0] - sub[i-1][0] > interval) {
                 prev = null
             }
-            const x1 = prev || Math.floor(mid - self.px_step * 0.5)
-            const x2 = Math.floor(mid + self.px_step * 0.5) - 0.5
+
+            const x1 = prev || Math.floor(mid_x - self.px_step * 0.5)
+            const x2 = Math.floor(mid_x + self.px_step * 0.5) - 0.5
             self.volume.push({
                 x1: x1,
                 x2: x2,
                 h: p[5] * vs,
-                green: p[4] >= p[1],
+                green: p[4] >= p[1],  // C equal-or-larger than O?
                 raw: p
             })
-            prev = x2 + splitter
+            prev = x2 + vol_splitter
         }
     }
 
     // Main grid
-    const hs = grid_hs()
+    const heights = grid_hs()  // array of [chart, offchart_1, offchart_n] heights
     const specs = {
-        sub, interval, range, ctx, $p, layers_meta, height: hs[0],
-        y_t: y_ts[0]
+        sub, interval, range, ctx, $p, layers_meta,
+        height: heights[0],  // main chart height
+        y_t: y_ts[0],
     }
-    const gms = [new GridMaker(0, specs)]
+
+    const gms = [new GridMaker(0, specs)]  // master grid
 
     // Sub grids
-    for (let [i, { data }] of offsub.entries()) {
-        specs.sub = data
-        specs.height = hs[i + 1]
+    for (let i = 0; i < offsub.length; i++) {
+        specs.sub = offsub[i].data
+        specs.height = heights[i + 1]
         specs.y_t = y_ts[i + 1]
         gms.push(new GridMaker(i + 1, specs, gms[0].get_layout()))
     }
 
     // Max sidebar among all grids
-    const sb = Math.max(...gms.map(x => x.get_sidebar()))
+    const sb = Math.max(...gms.map(grid_maker => grid_maker.get_sidebar()))  // effective sidebar width
     const grids = []
     let offset = 0
 
@@ -130,16 +165,16 @@ function Layout(params) {
         offset += grids[i].height
     }
 
-    const self = grids[0]
+    const self = grids[0]  // master grid (not grid_maker!)
 
     candles_n_vol()
 
     return {
-        grids: grids,
+        grids,
         botbar: {
             width: $p.width,
             height: $p.config.BOTBAR,
-            offset: offset,
+            offset,
             xs: grids[0] ? grids[0].xs : []
         }
     }
