@@ -45,7 +45,13 @@ export default {
         return new Date(t).getUTCMonth()
     },
 
-    // Nearest in array
+    /**
+     * Nearest in array
+     *
+     * @param {Number} x
+     * @param {Number[]} array
+     * @returns {number[]}
+     */
     nearest_a(x, array) {
         let dist = Infinity
         let val = null
@@ -53,8 +59,10 @@ export default {
 
         for (let i = 0; i < array.length; i++) {
             const xi = array[i]
-            if (Math.abs(xi - x) < dist) {
-                dist = Math.abs(xi - x)
+            const abs_dist = Math.abs(xi - x)
+
+            if (abs_dist < dist) {
+                dist = abs_dist
                 val = xi
                 index = i
             }

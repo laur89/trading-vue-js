@@ -4,17 +4,17 @@
         <keyboard ref="keyboard"></keyboard>
         <grid-section v-for="(grid, i) in this._layout.grids"
             :key="grid.id" ref="sec"
-            v-bind:common="section_props(i)"
-            v-bind:grid_id="i"
-            v-on:register-kb-listener="register_kb"
-            v-on:remove-kb-listener="remove_kb"
-            v-on:range-changed="range_changed"
-            v-on:cursor-changed="cursor_changed"
-            v-on:cursor-locked="cursor_locked"
-            v-on:sidebar-transform="set_ytransform"
-            v-on:layer-meta-props="layer_meta_props"
-            v-on:custom-event="emit_custom_event"
-            v-on:legend-button-click="legend_button_click"
+            :common="section_props(i)"
+            :grid_id="i"
+            @register-kb-listener="register_kb"
+            @remove-kb-listener="remove_kb"
+            @range-changed="range_changed"
+            @cursor-changed="cursor_changed"
+            @cursor-locked="cursor_locked"
+            @sidebar-transform="set_ytransform"
+            @layer-meta-props="layer_meta_props"
+            @custom-event="emit_custom_event"
+            @legend-button-click="legend_button_click"
             >
         </grid-section>
         <botbar v-bind="botbar_props"
@@ -56,7 +56,7 @@ export default {
         // Context for text measurements
         this.ctx = new Context(this.$props)
 
-        // Initial layout (All measurments for the chart)
+        // Initial layout (All measurements for the chart)
         this.init_range()
         this.sub = this.subset()
         Utils.overwrite(this.range, this.range) // Fix for IB mode
@@ -73,9 +73,8 @@ export default {
             // Overwite & keep the original references
             // Quick fix for IB mode (switch 2 next lines)
             // TODO: wtf?
-            var sub = this.subset(r)
             Utils.overwrite(this.range, r)
-            Utils.overwrite(this.sub, sub)
+            Utils.overwrite(this.sub, this.subset(r))
             this.update_layout()
             this.$emit('range-changed', r)
             if (this.$props.ib) this.save_data_t()
@@ -99,6 +98,10 @@ export default {
             this.cursor.locked = state
             if (this._hook_xlocked) this.ce('?x-locked', state)
         },
+
+        /**
+         * Derive interval based on our data
+         */
         calc_interval() {
             let tf = Utils.parse_tf(this.forced_tf)
             if (this.ohlcv.length < 2 && !tf) return
@@ -116,33 +119,42 @@ export default {
             this.update_layout()
             Utils.overwrite(this.range, this.range)
         },
+
+        /**
+         * Define initial range based on amount of bars available
+         * and some constants.
+         */
         default_range() {
-            const dl = this.$props.config.DEFAULT_LEN
-            const ml = this.$props.config.MINIMUM_LEN + 0.5
-            const l = this.ohlcv.length - 1
+            const data = this.ohlcv
+            if (data.length < 2) return
 
-            if (this.ohlcv.length < 2) return
+            const def_len = this.$props.config.DEFAULT_LEN
+            const min_len = this.$props.config.MINIMUM_LEN + 0.5
+            const last_idx = data.length - 1
 
-            let s, d
-            if (this.ohlcv.length <= dl) {
-                s = 0
-                d = ml
+            let start_idx, d  // TODO: d is some coefficient?
+            if (data.length < def_len) {
+                start_idx = 0
+                d = min_len
             } else {
-                s = l - dl
+                start_idx = last_idx - def_len
                 d = 0.5
             }
+
             if (!this.$props.ib) {
                 Utils.overwrite(this.range, [
-                    this.ohlcv[s][0] - this.interval * d,
-                    this.ohlcv[l][0] + this.interval * ml
+                    data[start_idx][0] - this.interval * d,
+                    data[last_idx][0] + this.interval * min_len
                 ])
             } else {
                 Utils.overwrite(this.range, [
-                    s - this.interval * d,
-                    l + this.interval * ml
+                    start_idx - this.interval * d,
+                    last_idx + this.interval * min_len
                 ])
             }
         },
+
+        // fetch subset of candles based on given range:
         subset(range = this.range) {
             var [res, index] = this.filter(
                 this.ohlcv,
@@ -232,8 +244,7 @@ export default {
         },
         update_layout(clac_tf) {
             if (clac_tf) this.calc_interval()
-            const lay = new Layout(this)
-            Utils.copy_layout(this._layout, lay)
+            Utils.copy_layout(this._layout, new Layout(this))
             if (this._hook_update) this.ce('?chart-update', lay)
         },
         legend_button_click(event) {
@@ -305,9 +316,11 @@ export default {
         // Datasets: candles, onchart, offchart indicators
         ohlcv() {
             return this.$props.data.ohlcv || this.chart.data || []
+            // TODO: change to this once ohlcv (old data format) has been deprecated:
+            //return this.chart.data || []
         },
         chart() {
-            return this.$props.data.chart || { grid: {} }
+            return this.$props.data.chart || { grid: {}, data: [] }
         },
         onchart() {
             return this.$props.data.onchart || []
@@ -336,13 +349,13 @@ export default {
     },
     data() {
         return {
-            // Current data slice
+            // Current data slice; main chart candles corresponding to this.range;
             sub: [],
 
-            // Time range
+            // Time range, [startEpoch, endEpoch]
             range: [],
 
-            // Candlestick interval
+            // Candlestick interval, millis
             interval: 0,
 
             // Crosshair states

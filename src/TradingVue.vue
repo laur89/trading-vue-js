@@ -10,23 +10,24 @@
             height: this.height+'px'}">
         <toolbar v-if="toolbar"
             ref="toolbar"
-            v-on:custom-event="custom_event"
+            @custom-event="on_custom_event"
             v-bind="chart_props"
-            v-bind:config="chart_config">
+            :config="chart_config">
         </toolbar>
         <widgets v-if="controllers.length"
             ref="widgets"
             :map="ws" :width="width" :height="height"
             :tv="this" :dc="data">
         </widgets>
-        <chart :key="reset"
+        <chart
+            :key="reset"
             ref="chart"
             v-bind="chart_props"
-            v-bind:tv_id="id"
-            v-bind:config="chart_config"
-            v-on:custom-event="custom_event"
-            v-on:range-changed="on_range_changed"
-            v-on:legend-button-click="legend_button">
+            :tv_id="id"
+            :config="chart_config"
+            @custom-event="on_custom_event"
+            @range-changed="on_range_changed"
+            @legend-button-click="on_legend_button">
         </chart>
         <transition name="tvjs-drift">
             <the-tip :data="tip" v-if="tip"
@@ -252,7 +253,7 @@ export default {
         return { reset: 0, tip: null }
     },
     beforeDestroy() {
-        this.custom_event({ event: 'before-destroy' })
+        this.on_custom_event({ event: 'before-destroy' })
         this.ctrl_destroy()
     },
     methods: {
@@ -309,12 +310,12 @@ export default {
         showTheTip(text, color = "orange") {
             this.tip = { text, color }
         },
-        legend_button(event) {
+        on_legend_button(event) {
             this.custom_event({
                 event: 'legend-button-click', args: [event]
             })
         },
-        custom_event(d) {
+        on_custom_event(d) {
             if (d.hasOwnProperty('args')) {
                 this.$emit(d.event, ...d.args)
             } else {
