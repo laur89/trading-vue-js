@@ -12,21 +12,41 @@ const MAX_INT = Number.MAX_SAFE_INTEGER
 // master_grid - ref to the master grid
 function GridMaker(id, params, master_grid = null) {
 
-    let {
+    const {
         sub, interval, range, ctx, $p, layers_meta, height, y_t, ti_map,
         grid, timezone
     } = params
 
-    const self = { ti_map }
+    const self = {  // layout object? what's the semantics between 'layout' and 'grid'?
+        grid,
+        ti_map,
+        height,
+        master_grid,  // link to master grid entity;
+        prec: -1,  // (sidebar?) precision
+        sb: -1,  // sidebar width
+        spacex: -1,  // horizontal space (px) to draw on
+        startx: -1,  // x coordinate (px) for first/starting candle
+        A: -1,  // TODO
+        B: -1,  // TODO
+        t_step: -1,  // candle time-step in px?
+        px_step: -1,  // candle step in px
+        xs: null,   // array of [x_coord, candle]
+        ys: null,   // TODO
+        $_step: null,  // grid lines' vertical/y step in px;
+        $_hi: -1,  // max vertical range w/ the buffer, ie absolute
+        $_lo: -1,  // min vertical range w/ the buffer, ie absolute
+    }
+
     const lm = layers_meta[id]
-    let y_range_fn = null
+    let y_range_fn = undefined
     const ls = grid.logScale
 
-    if (lm && Object.keys(lm).length !== 0) {
-        // Gets last y_range fn()
-        let yrs = Object.values(lm).filter(x => x.y_range)
+    if (lm !== null && typeof lm === 'object' && Object.keys(lm).length !== 0) {
         // The first y_range() determines the range
-        if (yrs.length) y_range_fn = yrs[0].y_range
+        y_range_fn = Object.values(lm)
+            .find(x => x.hasOwnProperty('y_range') && typeof x.y_range === 'function')
+        y_range_fn = y_range_fn === undefined ? null : y_range_fn.y_range
+        // TODO: what is y_range for? to customize the range for our offchart?
     }
 
     // Calc vertical ($/₿) range
@@ -84,6 +104,11 @@ function GridMaker(id, params, master_grid = null) {
         }
     }
 
+    /**
+     * Sidebar is on the right, stacking the prices et al;
+     * We calculate some necessary properties and store 'em
+     * under {@code self} object.
+     */
     function calc_sidebar() {
 
         if (sub.length < 2) {
@@ -113,9 +138,10 @@ function GridMaker(id, params, master_grid = null) {
     }
 
     // Calculate $ precision for the Y-axis
+    // TODO: what does the return value really signify?
     function calc_precision(data) {
 
-        let max_r = 0, max_l = 0
+        let max_r = 0, max_l = 0  // max_{right,left} part (decimal being the separator); note they're not abolute values but length of digits
 
         let min = Infinity
         let max = -Infinity
@@ -130,16 +156,16 @@ function GridMaker(id, params, master_grid = null) {
         let l, r;
         [min, max].forEach(x => {
             // Fix undefined bug
-            var str = x != null ? x.toString() : ''
+            var open_as_str = x != null ? x.toString() : ''
             if (x < 0.000001) {
                 // Parsing the exponential form. Gosh this
                 // smells trickily
-                const [ls, rs] = str.split('e-')
+                const [ls, rs] = open_as_str.split('e-')
                 [l, r] = ls.split('.')
                 if (!r) r = ''
-                r = { length: r.length + parseInt(rs) || 0 }
+                r = { length: r.length + parseInt(rs) || 0 }  // we simulate string type here - we need the 'length' field;
             } else {
-                [l, r] = str.split('.')
+                [l, r] = open_as_str.split('.')
             }
 
             if (r && r.length > max_r) {
@@ -157,28 +183,31 @@ function GridMaker(id, params, master_grid = null) {
 
         if (max_l === 1) {
             return Math.min(8, Math.max(2, even))
-        } else if (max_l <= 2) {
+        } else if (max_l <= 2) {  // TODO: shouldn't this be if max_l === 2? no other values less than that are possible
             return Math.min(4, Math.max(2, even))
         }
 
         return 2
     }
 
+    /**
+     *
+     */
     function calc_positions() {
 
-        if (sub.length < 2) return
-
-        const dt = range[1] - range[0]
+        if (sub.length < 2) return  // less than 2 data-points
 
         // A pixel space available to draw on (x-axis)
         self.spacex = $p.width - self.sb
 
+        const delta_range = range[1] - range[0]
+
         // Candle capacity
-        const capacity = dt / interval
-        self.px_step = self.spacex / capacity
+        const capacity = delta_range / interval  // number of candles
+        self.px_step = self.spacex / capacity  // candle step in px
 
         // px / time ratio
-        const r = self.spacex / dt
+        const r = self.spacex / delta_range  // ms per 1px
         self.startx = (sub[0][0] - range[0]) * r
 
         // Candle Y-transform: (A = scale, B = shift)
@@ -194,10 +223,10 @@ function GridMaker(id, params, master_grid = null) {
     }
 
     // Select nearest good-looking t step (m is target scale)
-    function time_step() {
+    function time_step(delta_range) {
         const k = ti_map.ib ? 60000 : 1
-        const xrange = (range[1] - range[0]) * k
-        const m = xrange * ($p.config.GRIDX / $p.width)
+        const m = delta_range * k * ($p.config.GRIDX / $p.width)
+
         return Utils.nearest_a(m, TIMESCALES)[1] / k
     }
 
@@ -256,13 +285,13 @@ function GridMaker(id, params, master_grid = null) {
     function grid_x() {
 
         // If this is a subgrid, no need to calc a timeline,
-        // we just borrow it from the master_grid
-        if (!master_grid) {
+        // we just borrow it from the master_grid:
+        if (master_grid === null) {
 
-            self.t_step = time_step()
+            const delta_range = range[1] - range[0]
+            self.t_step = time_step(delta_range)
             self.xs = []
-            const dt = range[1] - range[0]
-            const r = self.spacex / dt
+            const r = self.spacex / delta_range  // ms per 1px
 
             /* TODO: remove the left-side glitch
 
@@ -298,8 +327,8 @@ function GridMaker(id, params, master_grid = null) {
 
             // TODO: fix grid extension for bigger timeframes
             if (interval < WEEK && r > 0) {
-                extend_left(dt, r)
-                extend_right(dt, r)
+                extend_left(delta_range, r)
+                extend_right(delta_rangedt, r)
             }
         } else {
 
@@ -340,23 +369,29 @@ function GridMaker(id, params, master_grid = null) {
         }
     }
 
-    function extend_left(dt, r) {
+    /**
+     * Create bogus filler elements to the left so all space 'til left edge is filled w/ grid
+     */
+    function extend_left(delta_range, r) {
 
-        if (self.xs.length === 0 || !isFinite(r)) return
+        if (self.xs.length === 0) return
 
-        let t = self.xs[0][1][0]
+        let t = self.xs[0][1][0]  // first candle's time
         while (true) {
             t -= self.t_step
             const x = Math.floor((t - range[0]) * r)
             if (x < 0) break
             // TODO: ==========> And insert it here somehow
             if (t % interval === 0) {
-                self.xs.unshift([x, [t], interval])
+                self.xs.unshift([x, [t], interval])  // TODO: adding bogus candle to the front?
             }
         }
     }
 
-    function extend_right(dt, r) {
+    /**
+     * Create bogus filler elements to the right so all space 'til right edge is filled w/ grid
+     */
+    function extend_right(delta_range, r) {
 
         if (self.xs.length === 0 || !isFinite(r)) return
 
@@ -371,6 +406,9 @@ function GridMaker(id, params, master_grid = null) {
         }
     }
 
+    /**
+     * calculate grid y coords
+     */
     function grid_y() {
 
         // Prevent duplicate levels
@@ -481,8 +519,8 @@ function GridMaker(id, params, master_grid = null) {
     }
 
     function apply_sizes() {
-        self.width = $p.width - self.sb
-        self.height = height
+        self.width = $p.width - self.sb  // TODO: try to deprecate, same as self.spacex
+        //self.height = height  // note this was also commented out, now assigning height prop above where self is declared
     }
 
     calc_$range()
@@ -502,20 +540,18 @@ function GridMaker(id, params, master_grid = null) {
             }
             apply_sizes()
 
-            // Link to the master grid (candlesticks)
-            if (master_grid) {
-                self.master_grid = master_grid
-            }
-
-            self.grid = grid // Grid params
-
             // Here we add some helpful functions for
             // plugin creators
             return layout_fn(self, range)
 
         },
         get_layout: () => self,
+
+        /**
+         * override sidebar width
+         */
         set_sidebar: v => self.sb = v,
+
         get_sidebar: () => self.sb,
     }
 }

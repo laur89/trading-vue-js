@@ -55,5 +55,4 @@ export default function(self, range) {
     })
 
     return self
-
 }

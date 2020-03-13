@@ -13,8 +13,7 @@ import Price from './components/primitives/price.js'
 import Ray from './components/primitives/ray.js'
 import Seg from './components/primitives/seg.js'
 
-import { layout_cnv, layout_vol } from
-    './components/js/layout_cnv.js'
+import { layout_cnv, layout_vol } from './components/js/layout_cnv.js'
 
 const primitives = {
     Candle, Volbar, Line, Pin, Price, Ray, Seg
