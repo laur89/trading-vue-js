@@ -262,8 +262,8 @@ export default {
             this.reset++
             const range = this.getRange()
 
-            if (!resetRange && range[0] && range[1]) {
-                this.$nextTick(() => this.setRange(...range))
+            if (!resetRange && range.start && range.end) {
+                this.$nextTick(() => this.setRange(...range))  // TODO: need to correctly set the range here
             }
             this.$nextTick(() => this.custom_event({
                 event: 'chart-reset', args: []

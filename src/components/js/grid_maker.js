@@ -79,6 +79,7 @@ function GridMaker(id, params, master_grid = null) {
         }
 
         // Fixed y-range in non-auto mode
+        //   TODO: what range is referenced here? should it be changed to support object instead of array?
         if (y_t && !y_t.auto && y_t.range) {
             self.$_hi = y_t.range[0]
             self.$_lo = y_t.range[1]
@@ -141,7 +142,7 @@ function GridMaker(id, params, master_grid = null) {
     // TODO: what does the return value really signify?
     function calc_precision(data) {
 
-        let max_r = 0, max_l = 0  // max_{right,left} part (decimal being the separator); note they're not abolute values but length of digits
+        let max_r = 0, max_l = 0  // max_{right,left} part (decimal being the separator); note they're not absolute values but length of digits
 
         let min = Infinity
         let max = -Infinity
@@ -191,7 +192,11 @@ function GridMaker(id, params, master_grid = null) {
     }
 
     /**
-     *
+     * Calculates some properties, such as
+     * {@code px_step},
+     * {@code startx},
+     * {@code A},
+     * {@code B}
      */
     function calc_positions() {
 
@@ -200,15 +205,15 @@ function GridMaker(id, params, master_grid = null) {
         // A pixel space available to draw on (x-axis)
         self.spacex = $p.width - self.sb
 
-        const delta_range = range[1] - range[0]
+        //const delta_range = range[1] - range[0]
 
         // Candle capacity
-        const capacity = delta_range / interval  // number of candles
+        const capacity = range.delta / interval  // number of candles
         self.px_step = self.spacex / capacity  // candle step in px
 
         // px / time ratio
-        const r = self.spacex / delta_range  // ms per 1px
-        self.startx = (sub[0][0] - range[0]) * r
+        const r = self.spacex / range.delta  // ms per 1px
+        self.startx = (sub[0][0] - range.start) * r
 
         // Candle Y-transform: (A = scale, B = shift)
         if (!grid.logScale) {
@@ -288,15 +293,15 @@ function GridMaker(id, params, master_grid = null) {
         // we just borrow it from the master_grid:
         if (master_grid === null) {
 
-            const delta_range = range[1] - range[0]
-            self.t_step = time_step(delta_range)
+            //const delta_range = range[1] - range[0]
+            self.t_step = time_step(range.delta)
             self.xs = []
-            const r = self.spacex / delta_range  // ms per 1px
+            const r = self.spacex / range.delta  // ms per 1px
 
             /* TODO: remove the left-side glitch
 
             let year_0 = Utils.get_year(sub[0][0])
-            for (var t0 = year_0; t0 < range[0]; t0 += self.t_step) {}
+            for (var t0 = year_0; t0 < range.start; t0 += self.t_step) {}
 
             let m0 = Utils.get_month(t0)*/
 
@@ -304,7 +309,7 @@ function GridMaker(id, params, master_grid = null) {
                 let p = sub[i]
                 let prev = sub[i-1] || []
                 let prev_xs = self.xs[self.xs.length - 1] || [0,[]]
-                let x = Math.floor((p[0] - range[0]) * r)
+                let x = Math.floor((p[0] - range.start) * r)
 
                 insert_line(prev, p, x)
 
@@ -327,8 +332,8 @@ function GridMaker(id, params, master_grid = null) {
 
             // TODO: fix grid extension for bigger timeframes
             if (interval < WEEK && r > 0) {
-                extend_left(delta_range, r)
-                extend_right(delta_rangedt, r)
+                extend_left(range.delta, r)
+                extend_right(range.delta, r)
             }
         } else {
 
@@ -379,7 +384,7 @@ function GridMaker(id, params, master_grid = null) {
         let t = self.xs[0][1][0]  // first candle's time
         while (true) {
             t -= self.t_step
-            const x = Math.floor((t - range[0]) * r)
+            const x = Utils.t2screen(t, range, self.spacex)
             if (x < 0) break
             // TODO: ==========> And insert it here somehow
             if (t % interval === 0) {
@@ -398,7 +403,7 @@ function GridMaker(id, params, master_grid = null) {
         let t = self.xs[self.xs.length - 1][1][0]
         while (true) {
             t += self.t_step
-            const x = Math.floor((t - range[0]) * r)
+            const x = Utils.t2screen(t, range, self.spacex)
             if (x > self.spacex) break
             if (t % interval === 0) {
                 self.xs.push([x, [t], interval])
@@ -543,8 +548,8 @@ function GridMaker(id, params, master_grid = null) {
             // Here we add some helpful functions for
             // plugin creators
             return layout_fn(self, range)
-
         },
+
         get_layout: () => self,
 
         /**

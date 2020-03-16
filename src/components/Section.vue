@@ -2,11 +2,11 @@
     <!-- Horizontal section: (grid + sidebar) -->
     <div class="trading-vue-section">
         <chart-legend ref="legend"
-            v-bind:values="section_values"
-            v-bind:grid_id="grid_id"
-            v-bind:common="legend_props"
-            v-bind:meta_props="get_meta_props"
-            v-on:legend-button-click="button_click">
+            :values="section_values"
+            :grid_id="grid_id"
+            :common="legend_props"
+            :meta_props="get_meta_props"
+            @legend-button-click="button_click">
         </chart-legend>
         <grid v-bind="grid_props" ref="grid"
             v-bind:grid_id="grid_id"
@@ -18,7 +18,8 @@
              v-on:layer-meta-props="emit_meta_props"
              v-on:custom-event="emit_custom_event"
              v-on:sidebar-transform="sidebar_transform"
-             v-on:rezoom-range="rezoom_range">
+             v-on:rezoom-range="rezoom_range"
+             @movement="movement_changed">
         </grid>
         <sidebar
             :ref="'sb-' + grid_id"
@@ -50,8 +51,8 @@ export default {
         this.init_shaders(this.$props.common.skin)
     },
     methods: {
-        range_changed(r) {
-            this.$emit('range-changed', r)
+        movement_changed(m) {
+            this.$emit('movement', m)
         },
         cursor_changed(c) {
             c.grid_id = this.$props.grid_id
