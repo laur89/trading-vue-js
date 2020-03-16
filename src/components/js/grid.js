@@ -53,10 +53,11 @@ export default class Grid {
             this.drag = {
                 x: event.center.x + this.offset_x,
                 y: event.center.y + this.offset_y,
-                r: this.range.slice(0),
-                t: this.range[1] - this.range[0],
+                r: Object.assign({}, this.range),
+                t: this.range.delta,
                 o: tfrm ? (tfrm.offset || 0) : 0,
-                y_r: tfrm && tfrm.range ? tfrm.range.slice(0) : undefined
+                y_r: tfrm && tfrm.range ? Object.assign({}, tfrm.range) : undefined,  // TODO, what range is this?
+                compound: 0,
             }
             this.comp.$emit('cursor-changed', {
                 grid_id: this.id,
@@ -95,9 +96,12 @@ export default class Grid {
         })
 
         mc.on('pinchstart', () => {
+            // TODO: 'r' property is not needed; 
+            // also: do we need to store 't', or could we access the latest
+            // this.range.delta instead?
             this.pinch = {
-                t: this.range[1] - this.range[0],
-                r: this.range.slice(0)
+                t: this.range.delta,
+                r: Object.assign({}, this.range),
             }
         })
 
@@ -275,26 +279,32 @@ export default class Grid {
             let offset = event.originalEvent.offsetX
             let diff_x = offset / (this.canvas.width-1) * diff
             let diff_y = diff - diff_x
-            this.range[0] -= diff_x
-            this.range[1] += diff_y
+            //this.range[0] -= diff_x
+            //this.range[1] += diff_y
+            // TODO: how to incorporate diff_y?
+            this.change_range(-diff_x, diff_y)
         } else {
-            this.range[0] -= diff
+            //this.range[0] -= diff
+            this.change_range(-diff)
         }
-
-        this.change_range()
     }
 
+    /**
+     * Call w/ updated coords
+     * @param x new!
+     * @param y new!
+     */
     mousedrag(x, y) {
 
-        const dt = this.drag.t * (this.drag.x - x) / this.layout.width
-
-        let d$ = this.layout.$_hi - this.layout.$_lo
-        d$ *= (this.drag.y - y) / this.layout.height
-        const offset = this.drag.o + d$
-
         if (this.$p.y_transform && !this.$p.y_transform.auto) {
+
+            let d$ = this.layout.$_hi - this.layout.$_lo
+            d$ *= (this.drag.y - y) / this.layout.height
+            const offset = this.drag.o + d$
+
             this.comp.$emit('sidebar-transform', {
                 grid_id: this.id,
+                // TODO: sort out the range bit here!; no longer array!
                 range: [
                     this.drag.y_r[0] - offset,
                     this.drag.y_r[1] - offset,
@@ -302,10 +312,15 @@ export default class Grid {
             })
         }
 
-        this.range[0] = this.drag.r[0] + dt
-        this.range[1] = this.drag.r[1] + dt
+        // TODO: shouldn't set here right? what about sidebar-transform above?^
+        //this.range[0] = this.drag.r[0] + dt
+        //this.range[1] = this.drag.r[1] + dt
 
-        this.change_range()
+        const dt = this.drag.t * (this.drag.x - x) / this.layout.width
+        //window.console.log(`DELTA CHANGE: [${dt}, current drag range: ${JSON.stringify(this.drag.r)}]`)
+
+        this.change_range(dt - this.drag.compound, dt - this.drag.compound)
+        this.drag.compound = dt
     }
 
     pinchzoom(scale) {
@@ -316,23 +331,25 @@ export default class Grid {
         const t = this.pinch.t
         const nt = t * 1 / scale
 
-        this.range[0] = this.pinch.r[0] - (nt - t) * 0.5
-        this.range[1] = this.pinch.r[1] + (nt - t) * 0.5
+        //this.range[0] = this.pinch.r[0] - (nt - t) * 0.5
+        //this.range[1] = this.pinch.r[1] + (nt - t) * 0.5
 
-        this.change_range()
+        const dt = (nt - t) * 0.5
+        this.change_range(-dt, dt)
     }
 
     trackpad_scroll(event) {
 
-        const dt = this.range[1] - this.range[0]
+        let dt = this.range.delta
 
-        this.range[0] += event.deltaX * dt * 0.011
-        this.range[1] += event.deltaX * dt * 0.011
+        //this.range[0] += event.deltaX * dt * 0.011
+        //this.range[1] += event.deltaX * dt * 0.011
 
-        this.change_range()
+        dt = event.deltaX * dt * 0.011
+        this.change_range(dt, dt)
     }
 
-    change_range() {
+    change_range(start_diff, end_diff = 0) {
 
         // TODO: better way to limit the view. Problem:
         // when you are at the dead end of the data,
@@ -340,19 +357,21 @@ export default class Grid {
         // the chart continues to scale down a little.
         // Solution: I don't know yet
 
-        if (!this.range.length || this.data.length < 2) return
 
-        const l = this.data.length - 1
+        if (!this.range || this.data.length < 2) return  // TODO what to do w/ this check
 
-        this.range[0] = Utils.clamp(
-            this.range[0],
-            -Infinity, this.data[l][0] - this.interval * 5.5,
-        )
+        //start_diff = Utils.clamp(
+            //    start_diff,
+        //-Infinity,
+        //   this.data[l][0] - this.interval * 5.5,
+        // )
 
-        this.range[1] = Utils.clamp(
-            this.range[1],
-            this.data[0][0] + this.interval * 5.5, Infinity
-        )
+        //end_diff = Utils.clamp(
+        //    end_diff,
+        //    this.data[0][0] + this.interval * 5.5,
+        //   Infinity
+        //)
+
 
         // TODO: IMPORTANT scrolling is jerky The Problem caused
         // by the long round trip of 'range-changed' event.
@@ -362,7 +381,7 @@ export default class Grid {
         // the lag. No smooth movement and it's annoying.
         // Solution: we could try to calc the layout immediatly
         // somewhere here. Still will hurt the sidebar & bottombar
-        this.comp.$emit('range-changed', this.range)
+        this.comp.$emit('movement', [Math.round(start_diff), Math.round(end_diff)])
     }
 
     // Propagate mouse event to overlays
