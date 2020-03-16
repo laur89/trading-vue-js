@@ -98,5 +98,6 @@ export default {
     TIMESCALES: TIMESCALES,
     $SCALES: $SCALES,
     ChartConfig: ChartConfig,
-    map_unit: MAP_UNIT
+    map_unit: MAP_UNIT.
+    WKD_GAP_DURATION: HOUR * 36,  // minimum data gap to qualify as weekend gap
 }

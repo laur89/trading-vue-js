@@ -3,19 +3,19 @@
     <div class="trading-vue-chart" :style="styles">
         <keyboard ref="keyboard"></keyboard>
         <grid-section v-for="(grid, i) in this._layout.grids"
-            :key="grid.id"
-            :common="section_props(i)"
-            :grid_id="i"
-            @register-kb-listener="register_kb"
-            @remove-kb-listener="remove_kb"
-            @range-changed="range_changed"
-            @cursor-changed="cursor_changed"
-            @cursor-locked="cursor_locked"
-            @sidebar-transform="set_ytransform"
-            @layer-meta-props="layer_meta_props"
-            @custom-event="emit_custom_event"
-            @legend-button-click="legend_button_click"
-            >
+                      :key="grid.id"
+                      :common="section_props(i)"
+                      :grid_id="i"
+                      @register-kb-listener="register_kb"
+                      @remove-kb-listener="remove_kb"
+                      @movement="movement_changed"
+                      @cursor-changed="cursor_changed"
+                      @cursor-locked="cursor_locked"
+                      @sidebar-transform="set_ytransform"
+                      @layer-meta-props="layer_meta_props"
+                      @custom-event="emit_custom_event"
+                      @legend-button-click="legend_button_click"
+        >
         </grid-section>
         <botbar v-bind="botbar_props" :shaders="shaders">
         </botbar>
@@ -53,8 +53,7 @@ export default {
         this.ctx = new Context(this.$props)
 
         // Initial layout (All measurements for the chart)
-        this.init_range()
-        this.sub = this.subset()
+        this.sub = this.subset(this.init_range())
         Utils.overwrite(this.range, this.range) // Fix for IB mode
         this._layout = new Layout(this)
 
@@ -68,15 +67,27 @@ export default {
             // Overwite & keep the original references
             // Quick fix for IB mode (switch 2 next lines)
             // TODO: wtf?
-            Utils.overwrite(this.range, r)
-            Utils.overwrite(this.sub, this.subset())
+            Object.assign(this.range, r)
+            //Utils.overwrite(this.range, r)  // needs to be done first! (other steps after my be dependent on it)
+
+            // TODO: we shouldn't call subset() here again!
+            //Utils.overwrite(this.sub, this.subset())
             this.update_layout()
             this.$emit('range-changed', r)
         },
-        goto(t) {
-            const dt = this.range[1] - this.range[0]
-            this.range_changed([t - dt, t])
+        movement_changed(m) {
+            this.subset(m)
         },
+
+        /**
+         * TODO: shouldn't call range_changed here, we need to define movement somehow and call subset()
+         */
+        goto(t) {
+            this.subset(t)
+        },
+        /**
+         * TODO: shouldn't call range_changed here, we need to define movement somehow and call subset()
+         */
         setRange(t1, t2) {
             this.range_changed([t1, t2])
         },
@@ -103,7 +114,7 @@ export default {
             Object.assign(obj, s)
             this.$set(this.y_transforms, s.grid_id, obj)
             this.update_layout()
-            Utils.overwrite(this.range, this.range)
+            Object.assign(this.range, this.range)
         },
 
         /**
@@ -127,38 +138,59 @@ export default {
                 d = 0.5
             }
 
-            if (!this.$props.ib) {
-                Utils.overwrite(this.range, [
-                    data[start_idx][0] - this.interval * d,
-                    data[last_idx][0] + this.interval * min_len
-                ])
-            } else {
-                Utils.overwrite(this.range, [
-                    start_idx - this.interval * d,
-                    last_idx + this.interval * min_len
-                ])
-            }
+// TODO: upstream has if-else here: if (!this.$props.ib) {
+            const start = data[start_idx][0] - this.interval * d;
+            const end = data[last_idx][0] + this.interval * min_len;
+            Object.assign(this.range, {
+                //start: start,
+                //end: end,  // TODO: no need to set start&end here right?
+                delta: end - start,
+            })
+
+            return end;
         },
 
         // fetch subset of candles based on our current this.range:
         // also done in overlay_subset()
-        subset(range = this.range) {
-            var [res, index] = this.filter(
+        // TODO: we need to make sure we have enough candles to fill out gaps as well!!
+        // note we can't really calculate this _prior_ to knowing how many units we need
+        // (ie all the width/step_x calculations done in layout should have been done?)
+        // note layout.candles_n_vol() would already know it; unsure if grid_maker can be left as-is;
+        // NOPE! grid_maker needs full to-be candles for scale calculation!
+
+        // maybe pull some logic out from grid_maker to first decide how many _sequential_
+        // candles we need to include (regardless of gaps whatsoever)?
+
+        // TODO: need to update the range here?
+
+        // by the time this is called, at least range.delta should've been initialised!
+        subset(movement = [0, 0]) {
+            if (Array.isArray(movement) && movement[0] === 0
+                      && movement[1] === 0 && this.sub.length !== 0) {
+                // no movement, return previously stored sub:
+                return this.sub
+            }
+
+            const { start, end, gaps, delta, data } = Utils.fast_f(  // TODO: start time should have this.interval deducted?
                 this.ohlcv,
-                range[0] - this.interval,
-                range[1]
-            )
-            this.ti_map = new TI()
-            if (res) {
-                this.sub_start = index
-                this.ti_map.init(this, res)
-                if (!this.$props.ib) return res || []
-                return this.ti_map.sub_i
+                this.range,
+                movement,
+                this.interval,
+            );
+
+            if (this.range.start !== start || this.range.end !== end) {
+                // TODO: overwrite this.sub here?
+                Utils.overwrite(this.sub, data)
+
+                this.range_changed({
+                    start, end, gaps, delta
+                })
             }
             return []
         },
+
         /**
-         * Get excerpt from given {@link source} (eg chart/offchart)
+         * Get excerpt from given {@link source} (eg onchart/offchart)
          * candles for current {@lik range}
          */
         overlay_subset(source) {
@@ -167,6 +199,9 @@ export default {
                 name: d.name,
                 data: this.ti_map.parse(Utils.fast_filter(
                     d.data,
+// TODO: following 2 lines should be these:
+//                    this.range.start - this.interval,
+//                    this.range.end
                     this.ti_map.i2t(this.range[0] - this.interval),
                     this.ti_map.i2t(this.range[1])
                 )[0] || []),
@@ -198,7 +233,7 @@ export default {
         },
         init_range() {
             this.calc_interval()
-            this.default_range()
+            return this.default_range()
         },
         layer_meta_props(d) {
             // TODO: check reactivity when layout is changed
@@ -311,7 +346,12 @@ export default {
             sub: [],
 
             // Time range, [startEpoch, endEpoch]
-            range: [],
+            range: {
+                start: -1,
+                end: -1,
+                delta: -1,
+                gaps: null,  // null if we're currently spanning no gaps, otherwise Array
+            },
 
             // Candlestick interval, millis
             interval: 0,
@@ -367,19 +407,20 @@ export default {
             this.update_layout()
         },
         colors() {
-            Utils.overwrite(this.range, this.range)
+            Object.assign(this.range, this.range)
         },
         data: {
             handler: function(n, p) {
-                if (!this.sub.length) this.init_range()
-                const sub = this.subset()
+                const m = this.sub.length === 0 ? this.init_range() : undefined;
+                const sub = this.subset(m)
+
                 // Fix Infinite loop warn, when the subset is empty
                 // TODO: Consider removing 'sub' from data entirely
                 if (this.sub.length || sub.length) {
                     Utils.overwrite(this.sub, sub)
                 }
                 this.update_layout(Utils.data_changed(n, p))
-                Utils.overwrite(this.range, this.range)  // TODO: pointless operation?
+                //Object.assign(this.range, this.range)  // TODO: pointless operation?
                 this.cursor.scroll_lock = !!n.scrollLock
                 if (n.scrollLock && this.cursor.locked) {
                     this.cursor.locked = false
