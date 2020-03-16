@@ -6,7 +6,7 @@ import math from '../../stuff/math.js'
 export default function(self, range) {
 
     const ib = self.ti_map.ib
-    const dt = range[1] - range[0]
+    const dt = range.end - range.start
     const r = self.spacex / dt
     const ls = self.grid.logScale || false
 
@@ -14,8 +14,13 @@ export default function(self, range) {
         // Time to screen coordinates
         t2screen: t => {
             if (ib) t = self.ti_map.smth2i(t)
-            return Math.floor((t - range[0]) * r) - 0.5
+            return Math.floor((t - range.start) * r) - 0.5
         },
+//        t2screen: t => {
+//            return Utils.t2screen(t, range, self.spacex) - 0.5  // TODO: why -0.5?
+//            //const r = self.spacex / range.delta
+//            //return Math.floor((t - range.start) * r) - 0.5
+//        },
         // $ to screen coordinates
         $2screen: y => {
             if (ls) y = math.log(y)
@@ -36,10 +41,11 @@ export default function(self, range) {
             return (y - self.B) / self.A
         },
         // Screen-X to timestamp
+        // TODO: doesn't respect wkd gaps
         screen2t: x => {
             // TODO: most likely Math.floor not needed
-            // return Math.floor(range[0] + x / r)
-            return range[0] + x / r
+            // return Math.floor(range.start + x / r)
+            return range.start + x / r
         },
         // $-axis nearest step
         $_magnet: price => { },

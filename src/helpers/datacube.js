@@ -18,7 +18,7 @@ export default class DataCube extends DCCore {
             sub: null,  // can be either null or function
             unsub: null,  // can be either null or function
 
-            rangeToQuery: [],
+            rangeToQuery: {},
             timeframe: 0,  // millisec
 
             loading: true,  // whether we're currently in process of fetching data for a range; TODO: rename as 'fetching'

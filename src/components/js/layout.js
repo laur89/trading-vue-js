@@ -45,7 +45,7 @@ function Layout(_chart) {
 
         // When at least one height defined (default = 1),
         // Pxs calculated as: (sum of weights) / number
-        if (mgrid.height || offsub.find(x => x.grid.height)) {
+        if (mgrid.height || offsub.some(x => x.grid.height)) {
             return weighted_hs(mgrid, height)
         }
 
@@ -74,10 +74,15 @@ function Layout(_chart) {
 
         // Refine the height if Math.floor decreased px sum
         sum = heights.reduce((a, b) => a + b, 0)  // total heights as sum of partials
-        for (let i = 0; i < height - sum; i++) heights[i % heights.length]++  // randomly grow individual grids' height 'til we match the input height param
+        for (let i = 0; i < height - sum; i++) heights[i % heights.length]++  // randomly grow individual grids' height 'til we match the input height param?
         return heights
     }
 
+    /**
+     * calculate candles & positions
+     *
+     * TODO: unsure about the vol-bar clearing logic
+     */
     function candles_n_vol() {
         self.candles = []
         self.volume = []

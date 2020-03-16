@@ -41,9 +41,9 @@ export default class Botbar {
         this.ctx.fillStyle = this.$p.colors.text
         this.ctx.beginPath()
 
-        for (const p of this.layout.botbar.xs) {
-
-            let lbl = this.format_date(p)
+        for (let i = 0; i < this.layout.botbar.xs.length; i++) {
+            const p = this.layout.botbar.xs[i]
+            const lbl = this.format_date(p[1][0], this.layout.botbar.xs[i+1])  // we're passing raw candle time, which is correct
 
             if (p[0] > width - sb) continue
 
@@ -77,6 +77,9 @@ export default class Botbar {
         }
     }
 
+    /**
+     * cursor on botbar label
+     */
     panel() {
         const lbl = this.format_cursor_x()
         this.ctx.fillStyle = this.$p.colors.panel
@@ -95,8 +98,14 @@ export default class Botbar {
         this.ctx.fillText(lbl, cursor, y + 16)
     }
 
-    format_date(p) {
-        let t = p[1][0]
+    // TODO: implement time zones
+    // TODO2: this function is called way too often! ie when no scrolling/paning is happening!
+    /**
+     * Bottom bar labels for the grid-lines
+     * @param t
+     * @returns {string|number|*}
+     */
+    format_date(t, next_candle) {
         t = this.grid_0.ti_map.i2t(t)
         let ti = this.$p.layout.grids[0].ti_map.tf
         // Enable timezones only for tf < 1D
@@ -114,6 +123,15 @@ export default class Botbar {
         }
         // TODO(*) see grid_maker.js
         if (Utils.day_start(tZ) === tZ) return d.getUTCDate()
+        if (this.range.gaps !== null && next_candle !== undefined) {
+            for (const gap of this.range.gaps) {
+                if (t <= gap.start && next_candle[1][0] >= gap.end) {
+                    t = next_candle[1][0]
+                    t += new Date(t).getTimezoneOffset() * MINUTE
+                    return new Date(t).getDate()  // TODO: need to solve actual return format here
+                }
+            }
+        }
 
         let h = Utils.add_zero(d.getUTCHours())
         let m = Utils.add_zero(d.getUTCMinutes())

@@ -124,7 +124,7 @@ export default class DCCore extends DCEvents {
         // allowed to be updated above, effectively simulating debounce:
         await this._pauseRangeLogic()
 
-        const range = this.dynamicData.rangeToQuery.slice(0)  // take latest range snapshot
+        const range = Object.assign({}, this.dynamicData.rangeToQuery)  // take latest range snapshot to work with
         const d = this.data.chart.data
 
         let head = Infinity, tail = -Infinity;
@@ -133,21 +133,21 @@ export default class DCCore extends DCEvents {
             tail = d[d.length - 1][0]
         }
 
-        if (this.dynamicData.isHead && !this.unsubIfNeeded(range[1], tail)) {
+        if (this.dynamicData.isHead && !this.unsubIfNeeded(range.end, tail)) {
             this.dynamicData.loading = false
             return
         }
 
         const fetchLookAheadMs = this.dynamicData.fetchLookAhead * this.dynamicData.timeframe
         const fetchTriggerMarginMs = this.dynamicData.fetchTriggerMargin * this.dynamicData.timeframe
-        range[0] = (!this.dynamicData.isBeginning && range[0] - fetchTriggerMarginMs < head)
-            ? Math.floor(Math.min(range[0], head) - fetchLookAheadMs)
+        range.start = (!this.dynamicData.isBeginning && range.start - fetchTriggerMarginMs < head)
+            ? Math.floor(Math.min(range.start, head) - fetchLookAheadMs)
             : tail
-        range[1] = (!this.dynamicData.isEnd && range[1] + fetchTriggerMarginMs > tail)
-            ? Math.ceil(Math.max(range[1], tail) + fetchLookAheadMs)
+        range.end = (!this.dynamicData.isEnd && range.end + fetchTriggerMarginMs > tail)
+            ? Math.ceil(Math.max(range.end, tail) + fetchLookAheadMs)
             : head
 
-        if (range[0] < head || range[1] > tail) {  // _at least_ one end needs more data
+        if (range.start < head || range.end > tail) {  // _at least_ one end needs more data
             this.fetchAndProcess(range, head, tail)
         } else {
             // after pause we were within the existing data range,
@@ -170,9 +170,9 @@ export default class DCCore extends DCEvents {
     fetchAndProcess = async (range, head, tail) => {
         const fetchDirection = _getFetchDirection(range, head, tail)
         let latch = null
-        const cb = d => {
+        const cb = data => {
             // Callback way:
-            this.chunk_loaded(d, fetchDirection, latch)
+            this.chunk_loaded(data, fetchDirection, latch)
         }
         let promises  // 1 or 2 promises, depending on whether we're pulling data for one end or both
 
@@ -181,12 +181,14 @@ export default class DCCore extends DCEvents {
 
             latch = Utils.create_latch(2)
             promises = [
-                this.dynamicData.loadForRange([range[0], head], this.dynamicData.timeframe, cb),
-                this.dynamicData.loadForRange([tail, range[1]], this.dynamicData.timeframe, cb)
+                this.dynamicData.loadForRange(head, Math.ceil((head - range.start) / this.dynamicData.timeframe), -1, this.dynamicData.timeframe, cb),
+                this.dynamicData.loadForRange(tail, Math.ceil((range.end - tail) / this.dynamicData.timeframe), 1, this.dynamicData.timeframe, cb),
             ]
         } else {  // need to pull data only for either end
+            const anchorTime = fetchDirection === 1 ? range.start : range.end;
+            const numberOfDataPoints = Math.ceil((range.end - range.start) / this.dynamicData.timeframe)
             promises = [
-                this.dynamicData.loadForRange(range, this.dynamicData.timeframe, cb)
+                this.dynamicData.loadForRange(anchorTime, numberOfDataPoints, fetchDirection, this.dynamicData.timeframe, cb)
             ]
         }
 
@@ -222,7 +224,7 @@ export default class DCCore extends DCEvents {
                     // if the tail of last data is close enough to our visible tail OR we just pulled the tail (1st req),
                     // subscribe to live data feed:
                     if (this.dynamicData.sub !== null && (this.dynamicData.hasOwnProperty('isTail') ||
-                            this.dynamicData.rangeToQuery[1] >= tail - this.dynamicData.timeframe * 100)) {
+                            this.dynamicData.rangeToQuery.end >= tail - this.dynamicData.timeframe * 100)) {
                         delete this.dynamicData.isTail
 
                         // TODO: possibly need invoking via setTimeout/$nextTick only with isTail (ie during init), as chart range hasn't been init'd yet
@@ -310,10 +312,10 @@ export default class DCCore extends DCEvents {
         }
 
         d = this.data.chart.data
-        if (!this.dynamicData.cursorLock && d.length !== 0 && this.dynamicData.rangeToQuery[1] >= oldTail) {
+        if (!this.dynamicData.cursorLock && d.length !== 0 && this.dynamicData.rangeToQuery.end >= oldTail) {
             this.tv.goto(d[d.length-1][0])
         } else {
-            this.unsubIfNeeded(this.dynamicData.rangeToQuery[1], d.length === 0 ? -1 : d[d.length-1][0])
+            this.unsubIfNeeded(this.dynamicData.rangeToQuery.end, d.length === 0 ? -1 : d[d.length-1][0])
         }
 
         this.truncate_data(1)
@@ -709,9 +711,9 @@ export default class DCCore extends DCEvents {
 // when this function is called, it must've been verified
 // by this moment that we need to be fetching data at least in one direction.
 const _getFetchDirection = (range, head, tail) => {
-    if (range[0] === tail) {
+    if (range.start === tail) {
         return 1  // we're fetching from future, ie from right hand side
-    } else if (range[1] === head) {
+    } else if (range.end === head) {
         return -1  // we're fetching from the past, ie from left hand side
     }
 

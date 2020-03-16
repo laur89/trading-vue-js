@@ -22,10 +22,12 @@ class CursorUpdater {
             if (!this.cursor.locked) {
                 // TODO: find a better fix to invisible cursor prob
                 if (once) {
-                    this.cursor.t = this.cursor_time(grid, e, c)
+                    //this.cursor.t = this.cursor_time(grid, e, c)
+                    this.cursor.t = c.t  // TODO: right, no point in calling this.cursor_time() as line above?!
                     if (this.cursor.t) once = false
                 }
-                if(c.values) {
+
+                if (c.values) {
                     this.comp.$set(this.cursor.values, grid.id, c.values)
                 }
             }
@@ -88,12 +90,11 @@ class CursorUpdater {
     cursor_time(grid, mouse, candle) {
         const t = grid.screen2t(mouse.x)
         const r = Math.abs((t - candle.t) / this.comp.interval)
-        const sign = Math.sign(t - candle.t)
 
         if (r >= 0.5) {
             // Outside the data range
-            const n = Math.round(r)
-            return candle.t + n * this.comp.interval * sign
+            const sign = Math.sign(t - candle.t)
+            return candle.t + Math.round(r) * this.comp.interval * sign
         }
 
         // Inside the data range
