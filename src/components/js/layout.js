@@ -6,6 +6,7 @@
 // So it's better to calc all in one place.
 
 import GridMaker from './grid_maker.js'
+import Utils from '../../stuff/utils.js'
 
 /**
  *
@@ -73,19 +74,8 @@ function Layout(_chart) {
 
         // Refine the height if Math.floor decreased px sum
         sum = heights.reduce((a, b) => a + b, 0)  // total heights as sum of partials
-        for (let i = 0; i < height - sum; i++) heights[i % heights.length]++  // randomly grow individual grids' height 'til we match the input height param
+        for (let i = 0; i < height - sum; i++) heights[i % heights.length]++  // randomly grow individual grids' height 'til we match the input height param?
         return heights
-    }
-
-    /**
-     * time to x coord
-     * @param t
-     * @returns {number}
-     */
-    function t2screen(t) {
-        const delta_range = range[1] - range[0]
-        const r = self.spacex / delta_range
-        return Math.floor((t - range[0]) * r)
     }
 
     /**
@@ -105,7 +95,7 @@ function Layout(_chart) {
 
         for (let i = 0; i < sub.length; i++) {
             const p = sub[i]
-            const mid_x = t2screen(p[0])
+            const mid_x = Utils.t2screen(p[0], range, self.spacex)
             self.candles.push({
                 x: mid_x,
                 w: self.px_step * $p.config.CANDLEW,
