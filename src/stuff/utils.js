@@ -1,10 +1,16 @@
 
 import IndexedArray from 'arrayslicer'
+import Const from './constants';
+const { WKD_GAP_DURATION, DAY } = Const
 
 export default {
 
+    /**
+     * Makes sure given {@code num} is within the given
+     * limits {@code min} <= num <= {@code max}
+     */
     clamp(num, min, max) {
-        return num <= min ? min : num >= max ? max : num
+        return num <= min ? min : (num >= max ? max : num)
     },
 
     add_zero(i) {
@@ -155,6 +161,144 @@ export default {
         }
     },
 
+    /**
+     * TODO: handle cases where:
+     * - we're zoomed out and are spanning more than 1 gap
+     */
+    fast_f(arr, range, movement, interval) {
+        if (arr.length === 0) {
+            return {
+                ...range,
+                data: arr,
+            }
+        }
+
+        let start, end, gaps, data;
+        if (Array.isArray(movement)) {
+            [ start, end, gaps, data ] = this.fast_f_for_range(arr, range, movement, interval);
+        } else {  // typeof movement should be 'number'
+            [ start, end, gaps, data ] = this.fast_f_for_end_timestamp(arr, range, movement, interval);
+            // TODO: should we reset the existing gaps here? (as we weren't "panning", but jumping)
+            range.gaps = null  // reset, previous gaps mean nothing
+        }
+
+        if (range.gaps !== null) {  // ie we were previously (possibly still) spanning a gap
+            if (gaps.length !== 0) {
+                // this situation should never occur! we were already spanning gap, how come new one was detected? 2 gaps? theoretically possible...
+                // ALSO! this could happen if fast_f_for_end_timestamp() path was followed?
+                throw new Error(`already were within detected gap ${JSON.stringify(range.gaps)}, and now also identified _new_ one ${JSON.stringify(gaps)}`);
+            } else if (!(start < range.gaps[0].start && end > range.gaps[0].end)) {  // TODO currently only supports single gap
+                gaps = null  // looks like we've exited gap, reset
+            } else {
+                gaps = range.gaps  // we're still spanning the gap(s), do not reset
+            }
+        } else {  // no existing gaps from previous movement
+            gaps = gaps.length === 0 ? null : gaps
+        }
+
+        let delta = end - start
+        if (gaps !== null) {
+            for (const gap of gaps) {
+                delta -= gap.delta
+            }
+        }
+
+        return {start, end, gaps, delta, data};
+    },
+
+    /**
+     * TODO: handle cases where:
+     * - we directly jump in the middle of gap (ie both start & end)
+     * - we're zoomed out and are spanning more than 1 gap
+     *
+     * @param arr
+     * @param range note this is our _current_, pre-movement range
+     * @returns {Array<boolean,object>} [isExactMatch, candle]
+     */
+    fast_f_for_range(arr, range, movement, interval) {
+        const ia = new IndexedArray(arr, '0');
+        const gaps = [];  // TODO: detect if both ends go over the gap, ie effectively no more gap!
+
+        // first let's find first/starting candle (or its index?):
+        let start = range.start + movement[0];
+        ia.fetch(start)
+        if (interval <= DAY
+                    && ia.cursor === null && ia.nextlow !== null && ia.nexthigh !== null
+                    && arr[ia.nexthigh][0] - arr[ia.nextlow][0] > WKD_GAP_DURATION) {
+            if (movement[0] > 0) {  // moving fwd
+                start = arr[ia.nexthigh][0] + (movement[0] - (arr[ia.nextlow][0] - range.start));
+            } else {  // assuming m[0] < 0
+                start = arr[ia.nextlow][0] + (movement[0] + (range.start - arr[ia.nexthigh][0]));
+                gaps.push({  // right? new gap only when START moving back?
+                    start: arr[ia.nextlow][0],
+                    end: arr[ia.nexthigh][0],
+                    delta: arr[ia.nexthigh][0] - arr[ia.nextlow][0] - interval,
+                })
+            }
+        }
+
+        // ...now to defining the end:
+        let end = range.end + movement[1];
+        ia.fetch(end)
+        if (interval <= DAY
+                    && ia.cursor === null && ia.nexthigh !== null && ia.nextlow !== null
+                    && arr[ia.nexthigh][0] - arr[ia.nextlow][0] > WKD_GAP_DURATION) {
+            if (movement[1] > 0) {  // moving fwd
+                end = arr[ia.nexthigh][0] + (movement[1] - (arr[ia.nextlow][0] - range.end));
+
+                if (gaps.length === 0 || arr[ia.nextlow][0] !== gaps[0].start) {  // do not duplicate; TODO: is this check necessary?
+                    gaps.push({  // right? new gap only when END moving fwd?
+                        start: arr[ia.nextlow][0],
+                        end: arr[ia.nexthigh][0],
+                        delta: arr[ia.nexthigh][0] - arr[ia.nextlow][0] - interval,
+                    })
+                }
+            } else {  // assuming m[1] < 0
+                end = arr[ia.nextlow][0] + (movement[1] + (range.end - arr[ia.nexthigh][0]));
+            }
+        }
+
+        return [start, end, gaps, ia.getRange(start, end)];
+    },
+
+    /**
+     * TODO: handle cases where:
+     * - we directly jump in the middle of gap (ie both start & end)
+     * - we're zoomed out and are spanning more than 1 gap
+     *
+     * @param arr
+     * @param range note this is our _current_, pre-movement range
+     * @returns {Array<boolean,object>} [isExactMatch, candle]
+     */
+    fast_f_for_end_timestamp(arr, range, end, interval) {
+        const ia = new IndexedArray(arr, '0');
+        const gaps = [];  // TODO: detect if both ends go over the gap, ie effectively no more gap!
+        let start = end - range.delta;
+        ia.fetch(end);
+
+        if (interval <= DAY
+                    && ia.cursor === null && ia.nexthigh !== null && ia.nextlow !== null
+                    && arr[ia.nexthigh][0] - arr[ia.nextlow][0] > WKD_GAP_DURATION) {
+            if (arr[arr.length - 1][0] >= arr[ia.nexthigh][0] + range.delta) {
+                // this means all of our requested view fits _after_ the gap
+                start = arr[ia.nexthigh][0]
+                end = start + range.delta
+            } else {
+                // 'start' needs to be somewhere before the gap
+                end = arr[arr.length - 1][0]
+                start = arr[ia.nextlow][0] - (range.delta - (end - arr[ia.nexthigh][0]));
+
+                gaps.push({
+                    start: arr[ia.nextlow][0],
+                    end: arr[ia.nexthigh][0],
+                    delta: arr[ia.nexthigh][0] - arr[ia.nextlow][0] - interval,
+                })
+            }
+        }
+
+        return [start, end, gaps, ia.getRange(start, end)];
+    },
+
     now() { return new Date().getTime() },
 
     pause(delayMs) {
@@ -204,5 +348,25 @@ export default {
         return {
             check: () => --count === 0
         };
+    },
+
+    /**
+     * time to x coord
+     * @param t
+     * @returns {number}
+     */
+    t2screen(t, range, spacex) {
+        const r = spacex / range.delta  // ms per 1px
+
+        if (range.gaps !== null) {
+            // TODO: multiple gaps?
+            for (const gap of range.gaps) {
+                if (t >= gap.end) {
+                    t -= gap.delta
+                }
+            }
+        }
+
+        return Math.floor((t - range.start) * r);
     }
 }

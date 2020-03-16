@@ -7,9 +7,9 @@ export default function(self, range) {
     Object.assign(self, {
         // Time to screen coordinates
         t2screen: t => {
-            const delta_range = range[1] - range[0]
-            const r = self.spacex / delta_range
-            return Math.floor((t - range[0]) * r) - 0.5
+            return Utils.t2screen(t, range, self.spacex) - 0.5  // TODO: why -0.5?
+            //const r = self.spacex / range.delta
+            //return Math.floor((t - range.start) * r) - 0.5
         },
         // $ to screen coordinates
         $2screen: y => {
@@ -31,10 +31,11 @@ export default function(self, range) {
             return self.$_lo + y$
         },
         // Screen-X to timestamp
+        // TODO: doesn't respect wkd gaps
         screen2t: x => {
-            const delta_range = range[1] - range[0]
-            const r = self.spacex / delta_range
-            return Math.floor(range[0] + x / r)
+            //const delta_range = range[1] - range[0]
+            const r = self.spacex / range.delta
+            return Math.floor(range.start + x / r)
         },
         // $-axis nearest step
         $_magnet: price => { },

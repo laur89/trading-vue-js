@@ -2,28 +2,29 @@
     <!-- Horizontal section: (grid + sidebar) -->
     <div class="trading-vue-section">
         <chart-legend
-            v-bind:values="section_values"
-            v-bind:grid_id="grid_id"
-            v-bind:common="legend_props"
-            v-bind:meta_props="get_meta_props"
-            v-on:legend-button-click="button_click">
+            :values="section_values"
+            :grid_id="grid_id"
+            :common="legend_props"
+            :meta_props="get_meta_props"
+            @legend-button-click="button_click">
         </chart-legend>
-        <grid v-bind="grid_props" v-bind:grid_id="grid_id"
-             v-on:register-kb-listener="register_kb"
-             v-on:remove-kb-listener="remove_kb"
-             v-on:range-changed="range_changed"
-             v-on:cursor-changed="cursor_changed"
-             v-on:cursor-locked="cursor_locked"
-             v-on:layer-meta-props="emit_meta_props"
-             v-on:custom-event="emit_custom_event"
-             v-on:sidebar-transform="sidebar_transform">
+        <grid v-bind="grid_props"
+             :grid_id="grid_id"
+             @register-kb-listener="register_kb"
+             @remove-kb-listener="remove_kb"
+             @movement="movement_changed"
+             @cursor-changed="cursor_changed"
+             @cursor-locked="cursor_locked"
+             @layer-meta-props="emit_meta_props"
+             @custom-event="emit_custom_event"
+             @sidebar-transform="sidebar_transform">
         </grid>
         <sidebar
             v-bind="sidebar_props"
-            v-bind:grid_id="grid_id"
-            v-bind:rerender="rerender"
-            v-bind:shaders="shaders"
-            v-on:sidebar-transform="sidebar_transform">
+            :grid_id="grid_id"
+            :rerender="rerender"
+            :shaders="shaders"
+            @sidebar-transform="sidebar_transform">
         </sidebar>
     </div>
 </template>
@@ -45,8 +46,8 @@ export default {
     mixins: [Shaders],
     props: ['common', 'grid_id'],
     methods: {
-        range_changed(r) {
-            this.$emit('range-changed', r)
+        movement_changed(m) {
+            this.$emit('movement', m)
         },
         cursor_changed(c) {
             c.grid_id = this.$props.grid_id
