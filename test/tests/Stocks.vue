@@ -30,6 +30,8 @@ export default {
             this.$set(this, 'chart', Data)
         }, 0)
         this.onResize()
+
+        window.tv = this;  // for debugging
     },
     beforeDestroy() {
         window.removeEventListener('resize', this.onResize)
