@@ -54,9 +54,8 @@ export default class Grid {
                 x: event.center.x + this.offset_x,
                 y: event.center.y + this.offset_y,
                 r: Object.assign({}, this.range),
-                t: this.range.delta,
                 o: tfrm ? (tfrm.offset || 0) : 0,
-                y_r: tfrm && tfrm.range ? Object.assign({}, tfrm.range) : undefined,  // TODO, what range is this?
+                y_r: tfrm && tfrm.range ? tfrm.range.slice(0) : undefined,
                 compound: 0,
             }
             this.comp.$emit('cursor-changed', {
@@ -96,12 +95,8 @@ export default class Grid {
         })
 
         mc.on('pinchstart', () => {
-            // TODO: 'r' property is not needed; 
-            // also: do we need to store 't', or could we access the latest
-            // this.range.delta instead?
             this.pinch = {
                 t: this.range.delta,
-                r: Object.assign({}, this.range),
             }
         })
 
@@ -151,7 +146,8 @@ export default class Grid {
 
     mouseup(event) {
         this.drag = null
-    //    this.pinch = null
+        //this.pinch = null
+
         this.comp.$emit('cursor-locked', false)
         this.propagate('mouseup', event)
     }
@@ -279,12 +275,8 @@ export default class Grid {
             let offset = event.originalEvent.offsetX
             let diff_x = offset / (this.canvas.width-1) * diff
             let diff_y = diff - diff_x
-            //this.range[0] -= diff_x
-            //this.range[1] += diff_y
-            // TODO: how to incorporate diff_y?
             this.change_range(-diff_x, diff_y)
         } else {
-            //this.range[0] -= diff
             this.change_range(-diff)
         }
     }
@@ -304,7 +296,6 @@ export default class Grid {
 
             this.comp.$emit('sidebar-transform', {
                 grid_id: this.id,
-                // TODO: sort out the range bit here!; no longer array!
                 range: [
                     this.drag.y_r[0] - offset,
                     this.drag.y_r[1] - offset,
@@ -312,13 +303,7 @@ export default class Grid {
             })
         }
 
-        // TODO: shouldn't set here right? what about sidebar-transform above?^
-        //this.range[0] = this.drag.r[0] + dt
-        //this.range[1] = this.drag.r[1] + dt
-
-        const dt = this.drag.t * (this.drag.x - x) / this.layout.width
-        //window.console.log(`DELTA CHANGE: [${dt}, current drag range: ${JSON.stringify(this.drag.r)}]`)
-
+        const dt = this.drag.r.delta * (this.drag.x - x) / this.layout.width
         this.change_range(dt - this.drag.compound, dt - this.drag.compound)
         this.drag.compound = dt
     }
@@ -331,21 +316,13 @@ export default class Grid {
         const t = this.pinch.t
         const nt = t * 1 / scale
 
-        //this.range[0] = this.pinch.r[0] - (nt - t) * 0.5
-        //this.range[1] = this.pinch.r[1] + (nt - t) * 0.5
-
         const dt = (nt - t) * 0.5
         this.change_range(-dt, dt)
     }
 
     trackpad_scroll(event) {
 
-        let dt = this.range.delta
-
-        //this.range[0] += event.deltaX * dt * 0.011
-        //this.range[1] += event.deltaX * dt * 0.011
-
-        dt = event.deltaX * dt * 0.011
+        const dt = event.deltaX * this.range.delta * 0.011
         this.change_range(dt, dt)
     }
 
@@ -358,8 +335,9 @@ export default class Grid {
         // Solution: I don't know yet
 
 
-        if (!this.range || this.data.length < 2) return  // TODO what to do w/ this check
+        if (!this.range || this.data.length < 2) return
 
+        // TODO: where to do the clamping? in utils?
         //start_diff = Utils.clamp(
             //    start_diff,
         //-Infinity,
