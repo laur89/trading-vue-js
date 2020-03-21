@@ -26,9 +26,9 @@ function GridMaker(id, params, master_grid = null) {
         sb: -1,  // sidebar width
         spacex: -1,  // horizontal space (px) to draw on
         startx: -1,  // x coordinate (px) for first/starting candle
-        A: -1,  // TODO
-        B: -1,  // TODO
-        t_step: -1,  // candle time-step in px?
+        A: -1,  // TODO what is this?
+        B: -1,  // TODO what is this?
+        t_step: -1,  // time step at which to draw vertical grid lines at
         px_step: -1,  // candle step in px
         xs: null,   // array of [x_coord, candle]
         ys: null,   // TODO
@@ -52,7 +52,6 @@ function GridMaker(id, params, master_grid = null) {
     // Calc vertical ($/₿) range
     function calc_$range() {
         // Fixed y-range in non-auto mode
-        //   TODO: what range is referenced here? should it be changed to support object instead of array?
         if (y_t && !y_t.auto && y_t.range) {
             self.$_hi = y_t.range[0]
             self.$_lo = y_t.range[1]
@@ -139,7 +138,6 @@ function GridMaker(id, params, master_grid = null) {
         let max_r = 0, max_l = 0  // max_{right,left} part (decimal being the separator); note they're not absolute values but length of digits
 
         // Get max lengths of integer and fractional parts
-        // TODO: this implies our price always needs to contain decimal!!
         sub.forEach(x => {
             const open_as_str = x[1].toString()  // index 1 = open price;
             let l, r;
@@ -189,8 +187,6 @@ function GridMaker(id, params, master_grid = null) {
 
         // A pixel space available to draw on (x-axis)
         self.spacex = $p.width - self.sb
-
-        //const delta_range = range[1] - range[0]
 
         // Candle capacity
         const capacity = range.delta / interval  // number of candles
@@ -278,21 +274,19 @@ function GridMaker(id, params, master_grid = null) {
         // we just borrow it from the master_grid:
         if (master_grid === null) {
 
-            //const delta_range = range[1] - range[0]
             self.t_step = time_step(range.delta)
             self.xs = []
-            const r = self.spacex / range.delta  // ms per 1px
 
             for (let i = 0; i < sub.length; i++) {
                 const p = sub[i]
-                if (p[0] % self.t_step === 0) {  // TODO: this check is to make sure candle fits nicely?
-                    //const x = Math.floor((p[0] - range.start) * r)
+                if (p[0] % self.t_step === 0) {  // TODO: this check is to make sure candle fits nicely or what?
                     const x = Utils.t2screen(p[0], range, self.spacex)
                     self.xs.push([x, p])
                 }
             }
 
             // TODO: fix grid extension for bigger timeframes
+            const r = self.spacex / range.delta  // ms per 1px
             if (interval < WEEK && isFinite(r)) {
                 extend_left(range.delta, r)
                 extend_right(range.delta, r)
@@ -309,7 +303,7 @@ function GridMaker(id, params, master_grid = null) {
     /**
      * Create bogus filler elements to the left so all space 'til left edge is filled w/ grid
      */
-    function extend_left(delta_range, r) {
+    function extend_left() {
 
         if (self.xs.length === 0) return
 
@@ -319,7 +313,7 @@ function GridMaker(id, params, master_grid = null) {
             const x = Utils.t2screen(t, range, self.spacex)
             if (x < 0) break
             if (t % interval === 0) {
-                self.xs.unshift([x, [t]])  // TODO: adding bogus candle to the front?
+                self.xs.unshift([x, [t]])  // TODO: adding bogus datapoint to the front?
             }
         }
     }
@@ -327,7 +321,7 @@ function GridMaker(id, params, master_grid = null) {
     /**
      * Create bogus filler elements to the right so all space 'til right edge is filled w/ grid
      */
-    function extend_right(delta_range, r) {
+    function extend_right() {
 
         if (self.xs.length === 0) return
 

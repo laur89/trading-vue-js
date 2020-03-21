@@ -40,7 +40,7 @@ export default class Botbar {
 
         for (let i = 0; i < this.layout.botbar.xs.length; i++) {
             const p = this.layout.botbar.xs[i]
-            const lbl = this.format_date(p[1][0], this.layout.botbar.xs[i+1])  // we're passing raw candle time, which is correct
+            const lbl = this.format_date(p[1][0], this.layout.botbar.xs[i+1])
 
             if (p[0] > width - sb) continue
 
@@ -106,6 +106,8 @@ export default class Botbar {
         if (Utils.year_start(t) === t) return d.getFullYear()
         if (Utils.month_start(t) === t) return MONTHMAP[d.getMonth()]
         if (Utils.day_start(t) === t) return d.getDate()
+
+        // change label if we're followed by gap: TODO: following if-block is hacky and should be remvoved or reworked! from here
         if (this.range.gaps !== null && next_candle !== undefined) {
             for (const gap of this.range.gaps) {
                 if (t <= gap.start && next_candle[1][0] >= gap.end) {

@@ -29,6 +29,7 @@ export default {
         window.addEventListener('resize', this.onResize)
         this.onResize()
         window.dc = this.chart
+        window.tv = this;  // for debugging
     },
     computed: {
         colors() {
