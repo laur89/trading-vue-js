@@ -181,7 +181,7 @@ export default {
         decubed() {
             const data = this.$props.data
 
-            if (data.data !== undefined) {
+            if (data.hasOwnProperty('data')) {
                 // DataCube detected
                 data.init_tvjs(this)
                 return data.data
@@ -207,6 +207,9 @@ export default {
         },
         goto(t) {
             this.$refs.chart.goto(t)
+        },
+        pan(t) {
+            this.$refs.chart.goto([t, t])
         },
         setRange(t1, t2) {
             this.$refs.chart.setRange(t1, t2)

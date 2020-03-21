@@ -42,7 +42,7 @@ function Layout(_chart) {
         // When at least one height defined (default = 1),
         // Pxs calculated as: (sum of weights) / number
         //
-        // looks like grid.height is really a coefficient, not absolute value
+        // looks like grid.height is really a coefficient, not absolute value?
         const grid = chart.grid || {}
         if (grid.height || offsub.some(x => x.grid.height)) {
             // note we call this if _any_ grid height coefficient was defined:
@@ -62,7 +62,7 @@ function Layout(_chart) {
     }
 
     /**
-     * Get weighted heights?   TODO unsure
+     * Get weighted heights?   TODO unsure if true;
      * @param {Object} grid main chart grid
      * @param height {Number} total chart height minus bottom bar height;
      * @returns {number[]}
@@ -103,7 +103,7 @@ function Layout(_chart) {
                 h: p[2] * self.A + self.B,
                 l: p[3] * self.A + self.B,
                 c: p[4] * self.A + self.B,
-                raw: p  // raw candle entity
+                raw: p,  // raw candle entity
             })
 
             // Clear volume bar if there is a time gap
@@ -114,10 +114,10 @@ function Layout(_chart) {
             const x1 = prev || Math.floor(mid_x - self.px_step * 0.5)
             const x2 = Math.floor(mid_x + self.px_step * 0.5) - 0.5
             self.volume.push({
-                x1: x1,
-                x2: x2,
+                x1,
+                x2,
                 h: p[5] * vs,
-                green: p[4] >= p[1],  // C equal-or-larger than O?
+                green: p[4] >= p[1],  // check if C equal-or-larger than O
                 raw: p
             })
             prev = x2 + vol_splitter
@@ -132,7 +132,7 @@ function Layout(_chart) {
         y_t: y_ts[0],
     }
 
-    const gms = [new GridMaker(0, specs)]  // master grid
+    const gms = [new GridMaker(0, specs)]  // init w/ master grid_maker
 
     // Sub grids
     for (let i = 0; i < offsub.length; i++) {
@@ -142,7 +142,6 @@ function Layout(_chart) {
         gms.push(new GridMaker(i + 1, specs, gms[0].get_layout()))
     }
 
-    // Max sidebar among all grids
     const sb = Math.max(...gms.map(grid_maker => grid_maker.get_sidebar()))  // effective sidebar width
     const grids = []
     let offset = 0
@@ -155,7 +154,7 @@ function Layout(_chart) {
         offset += grids[i].height
     }
 
-    const self = grids[0]  // master grid (not grid_maker!)
+    const self = grids[0]  // master grid
 
     candles_n_vol()
 
