@@ -43,7 +43,7 @@ export default class Botbar {
 
         for (let i = 0; i < this.layout.botbar.xs.length; i++) {
             const p = this.layout.botbar.xs[i]
-            const lbl = this.format_date(p[1][0], this.layout.botbar.xs[i+1])  // we're passing raw candle time, which is correct
+            const lbl = this.format_date(p[1][0], this.layout.botbar.xs[i+1])
 
             if (p[0] > width - sb) continue
 
@@ -123,6 +123,8 @@ export default class Botbar {
         }
         // TODO(*) see grid_maker.js
         if (Utils.day_start(tZ) === tZ) return d.getUTCDate()
+
+        // change label if we're followed by gap: TODO: following if-block is hacky and should be remvoved or reworked! from here
         if (this.range.gaps !== null && next_candle !== undefined) {
             for (const gap of this.range.gaps) {
                 if (t <= gap.start && next_candle[1][0] >= gap.end) {
