@@ -219,7 +219,7 @@ export default {
         decubed() {
             const data = this.$props.data
 
-            if (data.data !== undefined) {
+            if (data.hasOwnProperty('data')) {
                 // DataCube detected
                 data.init_tvjs(this)
                 return data.data
@@ -276,6 +276,9 @@ export default {
                 t = ti_map.gt2i(t, this.$refs.chart.ohlcv)
             }
             this.$refs.chart.goto(t)
+        },
+        pan(t) {
+            this.$refs.chart.goto([t, t])
         },
         setRange(t1, t2) {
             if (this.chart_props.ib) {

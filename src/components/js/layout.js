@@ -62,7 +62,7 @@ function Layout(_chart) {
     }
 
     /**
-     * Get weighted heights?   TODO unsure
+     * Get weighted heights?   TODO unsure if true;
      * @param {Object} grid main chart grid
      * @param height {Number} total chart height minus bottom bar height;
      * @returns {number[]}
@@ -105,7 +105,7 @@ function Layout(_chart) {
                 h: Math.floor(p[2] * self.A + self.B),
                 l: Math.floor(p[3] * self.A + self.B),
                 c: Math.floor(p[4] * self.A + self.B),
-                raw: p  // raw candle entity
+                raw: p,  // raw candle entity
             })
 
             // Clear volume bar if there is a time gap
@@ -115,10 +115,10 @@ function Layout(_chart) {
             const x1 = prev || Math.floor(mid - hf_px_step)
             const x2 = Math.floor(mid + hf_px_step) - 0.5
             self.volume.push({
-                x1: x1,
-                x2: x2,
+                x1,
+                x2,
                 h: p[5] * vs,
-                green: p[4] >= p[1],  // C equal-or-larger than O?
+                green: p[4] >= p[1],  // check if C equal-or-larger than O
                 raw: p
             })
             prev = x2 + vol_splitter
@@ -133,7 +133,7 @@ function Layout(_chart) {
         y_t: y_ts[0], grid: mgrid, timezone: $p.timezone
     }
 
-    const gms = [new GridMaker(0, specs)]  // master grid
+    const gms = [new GridMaker(0, specs)]  // init w/ master grid_maker
 
     // Sub grids
     for (let [i, { data, grid }] of offsub.entries()) {
@@ -144,7 +144,6 @@ function Layout(_chart) {
         gms.push(new GridMaker(i + 1, specs, gms[0].get_layout()))
     }
 
-    // Max sidebar among all grids
     const sb = Math.max(...gms.map(grid_maker => grid_maker.get_sidebar()))  // effective sidebar width
     const grids = []
     let offset = 0
@@ -157,7 +156,7 @@ function Layout(_chart) {
         offset += grids[i].height
     }
 
-    const self = grids[0]  // master grid (not grid_maker!)
+    const self = grids[0]  // master grid
 
     candles_n_vol()
 

@@ -26,9 +26,9 @@ function GridMaker(id, params, master_grid = null) {
         sb: -1,  // sidebar width
         spacex: -1,  // horizontal space (px) to draw on
         startx: -1,  // x coordinate (px) for first/starting candle
-        A: -1,  // TODO
-        B: -1,  // TODO
-        t_step: -1,  // candle time-step in px?
+        A: -1,  // TODO what is this?
+        B: -1,  // TODO what is this?
+        t_step: -1,  // time step at which to draw vertical grid lines at
         px_step: -1,  // candle step in px
         xs: null,   // array of [x_coord, candle]
         ys: null,   // TODO
@@ -80,6 +80,7 @@ function GridMaker(id, params, master_grid = null) {
 
         // Fixed y-range in non-auto mode
         //   TODO: what range is referenced here? should it be changed to support object instead of array?
+        //   TODO: range is likely object here right?
         if (y_t && !y_t.auto && y_t.range) {
             self.$_hi = y_t.range[0]
             self.$_lo = y_t.range[1]
@@ -162,7 +163,7 @@ function GridMaker(id, params, master_grid = null) {
                 // Parsing the exponential form. Gosh this
                 // smells trickily
                 const [ls, rs] = open_as_str.split('e-')
-                [l, r] = ls.split('.')
+                [l, r] = ls.split('.') // TODO note to laur: check what's r value if not enough values? (instead of checking !r in following line)
                 if (!r) r = ''
                 r = { length: r.length + parseInt(rs) || 0 }  // we simulate string type here - we need the 'length' field;
             } else {
@@ -204,8 +205,6 @@ function GridMaker(id, params, master_grid = null) {
 
         // A pixel space available to draw on (x-axis)
         self.spacex = $p.width - self.sb
-
-        //const delta_range = range[1] - range[0]
 
         // Candle capacity
         const capacity = range.delta / interval  // number of candles
@@ -293,7 +292,6 @@ function GridMaker(id, params, master_grid = null) {
         // we just borrow it from the master_grid:
         if (master_grid === null) {
 
-            //const delta_range = range[1] - range[0]
             self.t_step = time_step(range.delta)
             self.xs = []
             const r = self.spacex / range.delta  // ms per 1px
@@ -306,7 +304,7 @@ function GridMaker(id, params, master_grid = null) {
             let m0 = Utils.get_month(t0)*/
 
             for (var i = 0; i < sub.length; i++) {
-                let p = sub[i]
+                const p = sub[i]
                 let prev = sub[i-1] || []
                 let prev_xs = self.xs[self.xs.length - 1] || [0,[]]
                 let x = Math.floor((p[0] - range.start) * r)
@@ -370,6 +368,10 @@ function GridMaker(id, params, master_grid = null) {
             self.xs.push([x, p, DAY])
         }
         else if (p[0] % self.t_step === 0) {
+// TODO: earlier _we_ had something like this; do we need Utils.t2screen() somewher??
+//                if (p[0] % self.t_step === 0) {  // TODO: this check is to make sure candle fits nicely or what?
+//                    const x = Utils.t2screen(p[0], range, self.spacex)
+//                    self.xs.push([x, p])
             self.xs.push([x, p, interval])
         }
     }

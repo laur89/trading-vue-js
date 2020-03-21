@@ -22,8 +22,9 @@ class CursorUpdater {
             if (!this.cursor.locked) {
                 // TODO: find a better fix to invisible cursor prob
                 if (once) {
-                    //this.cursor.t = this.cursor_time(grid, e, c)
-                    this.cursor.t = c.t  // TODO: right, no point in calling this.cursor_time() as line above?!
+                    this.cursor.t = this.cursor_time(grid, e, c)
+                    //this.cursor.t = c.t  // TODO: should be the commented out line above, but cursor is jumpy! possibly screen2t() is still buggy?
+
                     if (this.cursor.t) once = false
                 }
 
@@ -58,7 +59,7 @@ class CursorUpdater {
         for (const d of data) {
             let ts = d.data.map(x => x[0])
             let i = Utils.nearest_a(t, ts)[0]
-            d.type in ids ? (ids[d.type]++) : (ids[d.type] = 0)
+            d.type in ids ? ids[d.type]++ : (ids[d.type] = 0)
             res[`${d.type}_${ids[d.type]}`] = d.data[i]
         }
 
@@ -80,9 +81,8 @@ class CursorUpdater {
             y$: grid.screen2$(e.y - 2 - grid.offset),
             t: (data[i] || [])[0],
             values: Object.assign({
-                ohlcv: grid.id === 0 ? data[i] : undefined
-            },
-            this.overlay_data(grid, e))
+                    ohlcv: grid.id === 0 ? data[i] : undefined
+                }, this.overlay_data(grid, e)),
         }
     }
 

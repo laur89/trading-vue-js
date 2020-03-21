@@ -73,8 +73,9 @@ export default {
             // Overwite & keep the original references
             // Quick fix for IB mode (switch 2 next lines)
             // TODO: wtf?
-            Utils.overwrite(this.range, r)
+            Object.assign(this.range, r)
             Utils.overwrite(this.sub, this.subset(r))  // TODO: fishy... is sthis call needed?
+
             this.update_layout()
             this.$emit('range-changed', r)
             if (this.$props.ib) this.save_data_t()
@@ -83,14 +84,12 @@ export default {
             this.subset(m)
         },
 
-        /**
-         * TODO: shouldn't call range_changed here, we need to define movement somehow and call subset()
-         */
         goto(t) {
             this.subset(t)
         },
         /**
-         * TODO: shouldn't call range_changed here, we need to define movement somehow and call subset()
+         * TODO: shouldn't call range_changed here, we need to
+         * define movement somehow and call subset() with it instead!
          */
         setRange(t1, t2) {
             this.range_changed([t1, t2])
@@ -126,8 +125,7 @@ export default {
             Object.assign(obj, s)
             this.$set(this.y_transforms, s.grid_id, obj)
             this.update_layout()
-            //Object.assign(this.range, this.range)
-            Utils.overwrite(this.range, this.range)
+            //Object.assign(this.range, this.range)  // TODO: is this really needed?
         },
 
         /**
@@ -155,47 +153,48 @@ export default {
             const start = data[start_idx][0] - this.interval * d;
             const end = data[last_idx][0] + this.interval * min_len;
             Object.assign(this.range, {
-                //start: start,
-                //end: end,  // TODO: no need to set start&end here right?
+                // no need to set start&end at this stage
                 delta: end - start,
             })
 
             return end;
         },
 
-        // TODO: post-rebase state very odd here!!!
-        //
-        // fetch subset of candles based on given range:
-        // TODO: we need to make sure we have enough candles to fill out gaps as well!!
-        // note we can't really calculate this _prior_ to knowing how many units we need
-        // (ie all the width/step_x calculations done in layout should have been done?)
-        // note layout.candles_n_vol() would already know it; unsure if grid_maker can be left as-is;
-        // NOPE! grid_maker needs full to-be candles for scale calculation!
-
-        // maybe pull some logic out from grid_maker to first decide how many _sequential_
-        // candles we need to include (regardless of gaps whatsoever)?
-
-        // TODO: need to update the range here?
-
-        // by the time this is called, at least range.delta should've been initialised!
+        /**
+         * Define new start & end timestamps based on given {@code movement}.
+         * Note this function also defines & returns subset of main chart candles
+         * that fit within our new range, and calls {@code range_changed()} function
+         * with redefined range parameters.
+         *
+         * @param {number|array<number>} movement  either a number stating the timestamp where our end (ie
+         *                               right-hand side) should be placed, or array of two elements:
+         *                               [start-delta-in-ms, end-delta-in-ms], ie array defining how much
+         *                               and in which direction our start & end points should be shifted.
+         * @returns {array<candle>} array of main chart candles that fit within our newly defined range.
+         */
         subset(movement = [0, 0]) {
-            if (Array.isArray(movement) && movement[0] === 0
-                      && movement[1] === 0 && this.sub.length !== 0) {
-                // no movement, return previously stored sub:
-                return this.sub
-            }
+            // TODO: this check seems logical, but causes dynamically-pulled data to be rendered only on next 'movement':
+            //if (Array.isArray(movement) && movement[0] === 0
+            //          && movement[1] === 0 && this.sub.length !== 0) {
+            //    // no movement, return previously stored sub:
+            //    return this.sub
+            ///}
 
-            const { start, end, gaps, delta, data } = Utils.fast_f(  // TODO: start time should have this.interval deducted?
+            const { start, end, gaps, delta, data } = Utils.fast_f(  // TODO: previously start time had this.interval deducted; is that needed?
                 this.ohlcv,
                 this.range,
                 movement,
                 this.interval,
+                this.gaps,
             );
 
-            if (this.range.start !== start || this.range.end !== end) {
-                // TODO: overwrite this.sub here?
-                Utils.overwrite(this.sub, data)
+            const range_changed = this.range.start !== start || this.range.end !== end;
 
+            if (range_changed || this.sub.length !== data.length) {
+                Utils.overwrite(this.sub, data)
+            }
+
+            if (range_changed) {
                 this.range_changed({
                     start, end, gaps, delta
                 })
@@ -243,6 +242,32 @@ export default {
 
             })
         },
+
+        /**
+         * TODO this is our overlay_subset()... no idea how to marry this
+         * with the one above
+         *
+         * Get excerpt from given {@code source} (eg onchart/offchart)
+         * candles for current {@code this.range}
+         */
+        overlay_subset(source) {
+            return source.map(d => ({
+                type: d.type,
+                name: d.name,
+                data: this.ti_map.parse(Utils.fast_filter(
+                    d.data,
+// TODO: following 2 lines should be these:
+//                    this.range.start - this.interval,
+//                    this.range.end
+                    this.ti_map.i2t(this.range[0] - this.interval),
+                    this.ti_map.i2t(this.range[1])
+                )[0] || []),
+                settings: d.settings || this.settings_ov,
+                grid: d.grid || {},
+                tf: Utils.parse_tf(d.tf)
+            }))
+        },
+
         section_props(i) {
             return i === 0 ?
                 this.main_section : this.sub_section
@@ -274,7 +299,7 @@ export default {
                 this.remove_meta_props(...d.args)
             }
         },
-        update_layout(clac_tf) {
+        update_layout(clac_tf = false) {
             if (clac_tf) this.calc_interval()
             Utils.copy_layout(this._layout, new Layout(this))
             if (this._hook_update) this.ce('?chart-update', lay)
@@ -384,13 +409,15 @@ export default {
             // Current data slice; main chart candles corresponding to this.range;
             sub: [],
 
-            // Time range, [startEpoch, endEpoch]
+            // Time range in our current view
             range: {
                 start: -1,
                 end: -1,
-                delta: -1,
-                gaps: null,  // null if we're currently spanning no gaps, otherwise Array
+                delta: -1,  // end - start - (sum of gaps' ranges)
+                gaps: null,  // null if we're currently spanning no gaps, otherwise non-empty array of gaps;
             },
+
+            gaps: [],  // data gaps for our _entire_ available main chart data range
 
             // Candlestick interval, millis
             interval: 0,
@@ -454,7 +481,7 @@ export default {
             this.update_layout()
         },
         colors() {
-            Object.assign(this.range, this.range)
+            Object.assign(this.range, this.range)  // TODO: is this really necessary?
         },
         forced_tf(n, p) {
             this.update_layout(true)
@@ -462,17 +489,20 @@ export default {
         },
         data: {
             handler: function(n, p) {
-                const m = this.sub.length === 0 ? this.init_range() : undefined;
-                const sub = this.subset(m)
+                const endTimestamp = this.sub.length === 0 ? this.init_range() : undefined  // init_range() should be called first thing here!
+                Utils.overwrite(this.gaps, Utils.resolve_gaps(this.ohlcv, this.interval))
+                this.subset(endTimestamp)
 
                 // Fixes Infinite loop warn, when the subset is empty
                 // TODO: Consider removing 'sub' from data entirely
                 if (this.sub.length || sub.length) {
                     Utils.overwrite(this.sub, sub)
                 }
-                let nw = this.data_changed()
-                this.update_layout(nw)
-                //Object.assign(this.range, this.range)  // TODO: pointless operation?
+
+                // TODO: data changed detection not working?:
+                //window.console.log(`d changed?: ${Utils.data_changed(n, p)}`)
+
+                this.update_layout(Utils.data_changed(n, p))
                 this.cursor.scroll_lock = !!n.scrollLock
                 if (n.scrollLock && this.cursor.locked) {
                     this.cursor.locked = false

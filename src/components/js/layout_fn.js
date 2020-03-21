@@ -18,8 +18,6 @@ export default function(self, range) {
         },
 //        t2screen: t => {
 //            return Utils.t2screen(t, range, self.spacex) - 0.5  // TODO: why -0.5?
-//            //const r = self.spacex / range.delta
-//            //return Math.floor((t - range.start) * r) - 0.5
 //        },
         // $ to screen coordinates
         $2screen: y => {
@@ -41,11 +39,16 @@ export default function(self, range) {
             return (y - self.B) / self.A
         },
         // Screen-X to timestamp
-        // TODO: doesn't respect wkd gaps
         screen2t: x => {
-            // TODO: most likely Math.floor not needed
-            // return Math.floor(range.start + x / r)
-            return range.start + x / r
+            let t = Math.floor(range.start + x / r)
+
+            if (range.gaps !== null) {
+                for (const gap of range.gaps) {
+                    if (t > gap.start) t += gap.delta  // t>start, _not_ t>= right?
+                }
+            }
+
+            return t
         },
         // $-axis nearest step
         $_magnet: price => { },
