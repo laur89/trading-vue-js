@@ -408,7 +408,7 @@ export default {
 
         return [
             data[0][0] + end_remainder,  // end, ie rightmost edge
-            end_remainder,  // end - last_candle_timestamp
+            end_remainder,  // end - last_candle_timestamp; >= 0
             delta,
             data,
         ]
