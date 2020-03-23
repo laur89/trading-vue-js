@@ -3,6 +3,7 @@
              :width="this.width"
              :height="this.height"
         :toolbar="true"
+        :gap_collapse="2"
         :color-back="colors.colorBack"
         :color-grid="colors.colorGrid"
         :color-text="colors.colorText">
