@@ -365,7 +365,7 @@ export default {
                 if (end_delta < 0) {  // moving backwards
                     for (let i = data_gaps.length-1; i >= 0; i--) {
                         const gap = data_gaps[i];
-                        
+
                         if (end <= gap.start && prev_end >= gap.end) {  // if gap fits entirely within our view
                             end += gap.delta * sign
                             prev_end += gap.delta * sign
@@ -397,6 +397,45 @@ export default {
         const end = define_end(range.end, movement[1]);
 
         return [start, end, gaps, new IndexedArray(arr, '0').getRange(start, end)];
+    },
+
+    fast_f_for_range2(arr, range, movement, interval) {
+        //console.log(`  ->  Zstart: ${JSON.stringify(range)}`);
+
+        const ia = new IndexedArray(arr, '0');
+        ia.fetch(range.end - range.end_remainder);  // move cursor to current, pre-move end
+        if (ia.cursor === null) throw new Error(`no datapoint found for current/previous endpoint @ [${range.end - range.end_remainder}]`);
+
+        // first define end; find where end cursor is to be moved:
+        const end_movement = range.end_remainder + movement[1];  // effective movement of right-hand-side in ms
+        let candle_count_delta = Math.floor(end_movement / interval);  // negative if end_movement < 0 (ie moving back), else positive
+
+        let end_idx = ia.cursor + candle_count_delta;
+        if (end_idx < 2) end_idx = 2;
+        else if (end_idx > arr.length-1) {
+            candle_count_delta -= (end_idx - (arr.length - 1));
+            end_idx = arr.length-1;
+            //if (end_movement > range.delta - 10 * interval) {
+            //    end_movement -= 300
+            //}
+        }
+
+        const end_remainder = end_movement - candle_count_delta * interval;
+
+        let delta = range.delta + movement[1] - movement[0];
+        const start_idx_minus_one = end_idx - Math.floor(delta / interval);  // end_idx - number_of_visible_candles
+
+        const data = [];
+        for (let i = end_idx; i >= 0 && i > start_idx_minus_one; i--) {
+            data.push(arr[i]);
+        }
+
+        return [
+            data[0][0] + end_remainder,  // end, ie rightmost edge
+            end_remainder,  // end - last_candle_timestamp
+            delta,
+            data,
+        ]
     },
 
     /**
@@ -457,6 +496,35 @@ export default {
         return [start, end, gaps, new IndexedArray(arr, '0').getRange(start, end)];
     },
 
+    fast_f_for_end_timestamp2(arr, range, end, interval) {
+        const ia = new IndexedArray(arr, '0');
+        ia.fetch(end);
+
+        let end_idx;
+        if (ia.cursor !== null) {
+            end_idx = ia.cursor;
+        } else {
+            end_idx = ia.nexthigh !== null ? ia.nexthigh : ia.nextlow;  // note we have affinity for looking forward/into future;
+        }
+
+        //const start_idx = Math.max(0, end_idx - range.candlesToShow + 1);
+        //const start_remainder = (end_idx - start_idx) * interval - range.delta;
+
+        const candles = []
+        //for (let i = Math.max(0, end_idx - range.candlesToShow + 1); i <= end_idx && i < arr.length; i++) {
+        //    candles.push(arr[i]);
+        //}
+        //        const candles = arr.slice(Math.max(0, end_idx - range.candlesToShow + 1), end_idx + 1);
+
+        const visible_candles = Math.floor(range.delta / interval);
+        for (let i = end_idx; i >= 0 && i > end_idx - visible_candles; i--) {
+            candles.push(arr[i]);
+        }
+
+        // TODO: shouldn't we return decreased delta if start_idx had to be decreased?
+
+        return [arr[end_idx][0], candles];
+    },
 
     now() { return new Date().getTime() },
 
@@ -675,5 +743,49 @@ export default {
         ('ontouchstart' in w ||
         (w.DocumentTouch &&
         document instanceof w.DocumentTouch))))
-        (typeof window !== 'undefined' ? window : {})
+        (typeof window !== 'undefined' ? window : {}),
+
+    /**
+     * Calculate how many datapoints/candles fit in our current
+     * view based on give params.
+     * @param start
+     * @param end
+     * @param interval
+     * @returns {number}
+     */
+    candles_in_view(start, end, interval) {
+        return Math.floor((end - start) / interval);
+    },
+
+    /**
+     * TODO: fast_f nova
+     * @param arr
+     * @param range
+     * @param movement
+     * @param interval
+     * @returns {{data: *}|{data: [], start: *, delta: number, end: *, gaps: *}}
+     */
+    fast_f2(arr, range, movement, interval) {
+        if (arr.length === 0) {
+            return {
+                ...range,
+                data: arr,
+            }
+        }
+
+        let end, end_remainder = 0, delta = range.delta, data;
+        if (Array.isArray(movement)) {
+            [ end, end_remainder, delta, data ] = this.fast_f_for_range2(arr, range, movement, interval);
+        } else {  // typeof movement == 'number'
+            [end, data] = this.fast_f_for_end_timestamp2(arr, range, movement, interval);
+        }
+
+        return {
+            start: end - delta,
+            end,
+            end_remainder,
+            delta,
+            data,
+        };
+    },
 }
