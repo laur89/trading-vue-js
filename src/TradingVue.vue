@@ -131,6 +131,10 @@ export default {
             type: Object,
             required: true
         },
+        gap_collapse: {
+            type: Number,
+            default: 2,
+        },
         // Your overlay classes here
         overlays: {
             type: Array,
@@ -167,6 +171,7 @@ export default {
                 buttons: this.$props.legendButtons,
                 toolbar: this.$props.toolbar,
                 ib: this.$props.indexBased || this.index_based || false,
+                gap_collapse: this.$props.gap_collapse,
                 colors: {}
             }
 
