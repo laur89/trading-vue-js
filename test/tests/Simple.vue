@@ -1,5 +1,7 @@
 <template>
-<trading-vue :data="chart" :width="this.width" :height="this.height"
+<trading-vue :data="chart"
+             :width="this.width"
+             :height="this.height"
         :color-back="colors.colorBack"
         :color-grid="colors.colorGrid"
         :color-text="colors.colorText">
