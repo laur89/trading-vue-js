@@ -99,7 +99,6 @@ class CursorUpdater {
     }
 
     // Get cursor t-position (extended)
-    // TODO: not working amazing in gap_collapse=1 mode yet;
     cursor_time(grid, mouse, candle) {
         const cursor_x_delta_to_nearest = mouse.x - candle.x;
         if (candle.is_out && Math.abs(cursor_x_delta_to_nearest) >= grid.px_step/2) {

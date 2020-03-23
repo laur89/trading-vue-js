@@ -61,6 +61,7 @@ export default class Price {
         ctx.setLineDash([])
     }
 
+    // get the last/rightmost visible bar
     last_bar() {
 
         if (!this.comp.data.length) return undefined
