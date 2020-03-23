@@ -21,8 +21,6 @@ class CursorUpdater {
                 // TODO: find a better fix to invisible cursor prob
                 if (once) {
                     this.cursor.t = this.cursor_time(grid, e, c)
-                    //this.cursor.t = c.t  // TODO: should be the commented out line above, but cursor is jumpy! possibly screen2t() is still buggy?
-
                     if (this.cursor.t) once = false
                 }
 
@@ -32,7 +30,10 @@ class CursorUpdater {
             }
 
             if (grid.id !== e.grid_id) continue
-            this.cursor.x = grid.t2screen(this.cursor.t)
+            this.cursor.x = c.is_out && Math.abs(e.x - c.x) >= grid.px_step/2
+                ? grid.t2screen(this.cursor.t)  // TODO: won't work nice when cursor in left extended area in gap_collapse=2 mode
+                : c.x;
+
             this.cursor.y = c.y
             this.cursor.y$ = c.y$
         }
@@ -60,10 +61,20 @@ class CursorUpdater {
 
     // Nearest datapoints
     cursor_data(grid, e) {
-
         const data = this.comp.main_section.sub
 
-        const xs = data.map(x => grid.t2screen(x[0]) + 0.5)
+        let xs;
+        switch (this.comp.$props.gap_collapse) {
+            case 1: {
+                xs = data.map(x => grid.t2screen(x[0]) + 0.5)  // TODO: why +0.5?
+                break;
+            }
+            case 2: {
+                xs = data.map((_, i) => (grid.startx - grid.px_step * i) + 0.5);  // should we -0.5 instead?
+                break;
+            }
+        }
+
         const i = Utils.nearest_a(e.x, xs)[0]
         if (!xs[i]) return {}
 
@@ -73,33 +84,22 @@ class CursorUpdater {
             y$: grid.screen2$(e.y - 2 - grid.offset),
             t: (data[i] || [])[0],
             values: Object.assign({
-                    ohlcv: grid.id === 0 ? data[i] : undefined
-                }, this.overlay_data(grid, e)),
+                ohlcv: grid.id === 0 ? data[i] : undefined
+            }, this.overlay_data(grid, e)),
+            is_out: i === 0 || i === xs.length-1,  // if our cursor is _possibly_ outside of the data range, ie in extended area
         }
     }
 
     // Get cursor t-position (extended)
+    // TODO: not working amazing in gap_collapse=1 mode yet;
     cursor_time(grid, mouse, candle) {
-        switch (this.comp.$props.gap_collapse) {
-            case 1: {
-                const t = grid.screen2t(mouse.x)
-                const r = Math.abs((t - candle.t) / this.comp.interval)
-
-                if (r >= 0.5) {
-                    // Outside the data range
-                    const sign = Math.sign(t - candle.t)
-                    return candle.t + Math.round(r) * this.comp.interval * sign
-                }
-
-                // Inside the data range
-                return candle.t
-            }
-            case 2: {
-                // TODO
-                return candle.t;
-            }
+        const cursor_x_delta_to_nearest = mouse.x - candle.x;
+        if (candle.is_out && Math.abs(cursor_x_delta_to_nearest) >= grid.px_step/2) {
+            // Outside the data range
+            return candle.t + Math.round(cursor_x_delta_to_nearest / grid.px_step) * this.comp.interval
         }
 
+        return candle.t
     }
 }
 
