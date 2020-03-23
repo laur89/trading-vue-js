@@ -44,7 +44,7 @@ export default {
     props: [
         'title_txt', 'data', 'width', 'height', 'font', 'colors',
         'overlays', 'tv_id', 'config', 'buttons', 'toolbar', 'ib',
-        'skin', 'timezone'
+        'skin', 'timezone', 'gap_collapse'
     ],
     mixins: [Shaders, DataTrack],
     components: {
@@ -74,7 +74,7 @@ export default {
             // Quick fix for IB mode (switch 2 next lines)
             // TODO: wtf?
             Object.assign(this.range, r)
-            Utils.overwrite(this.sub, this.subset(r))  // TODO: fishy... is sthis call needed?
+            //Utils.overwrite(this.sub, this.subset(r))  // TODO: fishy... is sthis call needed? also, r is type object!!
 
             this.update_layout()
             this.$emit('range-changed', r)
@@ -125,7 +125,7 @@ export default {
             Object.assign(obj, s)
             this.$set(this.y_transforms, s.grid_id, obj)
             this.update_layout()
-            //Object.assign(this.range, this.range)  // TODO: is this really needed?
+            Object.assign(this.range, this.range)  // TODO: is this really needed?
         },
 
         /**
@@ -152,10 +152,24 @@ export default {
 // TODO: upstream has if-else here: if (!this.$props.ib) {
             const start = data[start_idx][0] - this.interval * d;
             const end = data[last_idx][0] + this.interval * min_len;
-            Object.assign(this.range, {
-                // no need to set start&end at this stage
-                delta: end - start,
-            })
+
+            switch (this.$props.gap_collapse) {
+                case 1:
+                    Object.assign(this.range, {
+                        delta: end - start,
+                    });
+                    break;
+                case 2:
+                    // TODO: should we define something like a reminder, if our target doesn't exactly provide us w/ a candle? but should later still go toward a 'movement'?
+                    Object.assign(this.range, {
+                        //start,  // TODO: do we want/need to pass&store this? 'delta' prop should cover this no?
+                        //end,
+                        delta: end - start,
+                    })
+                    break;
+                default:
+                    throw new Error(`unsupported gap_collapse option ${this.$props.gap_collapse}`)
+            }
 
             return end;
         },
@@ -180,26 +194,59 @@ export default {
             //    return this.sub
             ///}
 
-            const { start, end, gaps, delta, data } = Utils.fast_f(  // TODO: previously start time had this.interval deducted; is that needed?
-                this.ohlcv,
-                this.range,
-                movement,
-                this.interval,
-                this.gaps,
-            );
+            switch (this.$props.gap_collapse) {
+                case 1: {
+                    const { start, end, gaps, delta, data } = Utils.fast_f(  // TODO: previously start time had this.interval deducted; is that needed?
+                        this.ohlcv,
+                        this.range,
+                        movement,
+                        this.interval,
+                        this.gaps,
+                    );
 
-            const range_changed = this.range.start !== start || this.range.end !== end;
+                    const range_changed = this.range.start !== start || this.range.end !== end;
 
-            if (range_changed || this.sub.length !== data.length) {
-                Utils.overwrite(this.sub, data)
+                    if (range_changed || this.sub.length !== data.length) {
+                        Utils.overwrite(this.sub, data)
+                    }
+
+                    if (range_changed) {
+                        this.range_changed({
+                            start, end, gaps, delta
+                        })
+                    }
+
+                    return data;
+                }
+                case 2: {
+                    const { start, end, end_remainder, delta, data } = Utils.fast_f2(
+                        this.ohlcv,
+                        this.range,
+                        movement,
+                        this.interval,
+                    );
+
+                    //console.log(JSON.stringify({
+                    //    movement, start, end, end_remainder, delta,
+                    //}))
+
+                    const range_changed = this.range.start !== start || this.range.end !== end;
+
+                    if (range_changed || this.sub.length !== data.length) {
+                        Utils.overwrite(this.sub, data)
+                    }
+
+                    if (range_changed) {
+                        this.range_changed({
+                            start, end, end_remainder, delta,
+                        })
+                    }
+
+                    return data;
+                }
+                default:
+                    throw new Error(`unsupported gap_collapse option ${this.$props.gap_collapse}`)
             }
-
-            if (range_changed) {
-                this.range_changed({
-                    start, end, gaps, delta
-                })
-            }
-            return []
         },
         common_props() {
             return {
@@ -409,12 +456,13 @@ export default {
             // Current data slice; main chart candles corresponding to this.range;
             sub: [],
 
-            // Time range in our current view
+            // Time range in our current view (ie in visible range)
             range: {
-                start: -1,
-                end: -1,
+                start: -1,  // only used w/ v1 collapse
+                end: -1,  // what time is at our current view's rightmost edge; TODO: semantics need to be specified
                 delta: -1,  // end - start - (sum of gaps' ranges)
-                gaps: null,  // null if we're currently spanning no gaps, otherwise non-empty array of gaps;
+                gaps: null,  // null if we're currently spanning no gaps, otherwise non-empty array of gaps; only used if $props.gap_collapse=1
+                end_remainder: 0,  // how many ms from rightmost candle to right edge; >= 0
             },
 
             gaps: [],  // data gaps for our _entire_ available main chart data range

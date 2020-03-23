@@ -88,17 +88,26 @@ class CursorUpdater {
 
     // Get cursor t-position (extended)
     cursor_time(grid, mouse, candle) {
-        const t = grid.screen2t(mouse.x)
-        const r = Math.abs((t - candle.t) / this.comp.interval)
+        switch (this.comp.$props.gap_collapse) {
+            case 1: {
+                const t = grid.screen2t(mouse.x)
+                const r = Math.abs((t - candle.t) / this.comp.interval)
 
-        if (r >= 0.5) {
-            // Outside the data range
-            const sign = Math.sign(t - candle.t)
-            return candle.t + Math.round(r) * this.comp.interval * sign
+                if (r >= 0.5) {
+                    // Outside the data range
+                    const sign = Math.sign(t - candle.t)
+                    return candle.t + Math.round(r) * this.comp.interval * sign
+                }
+
+                // Inside the data range
+                return candle.t
+            }
+            case 2: {
+                // TODO
+                return candle.t;
+            }
         }
 
-        // Inside the data range
-        return candle.t
     }
 }
 
