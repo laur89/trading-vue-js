@@ -185,7 +185,7 @@ function GridMaker(id, params, master_grid = null) {
                 self.startx = self.spacex - range.end_remainder * r;
                 break;
         }
-        console.log(`spacex: ${self.spacex},startx: ${self.startx}, range.end_remainder: ${range.end_remainder}, r: ${r}, cap: ${capacity}, interval: ${interval}`);
+        //console.log(`spacex: ${self.spacex},startx: ${self.startx}, range.end_remainder: ${range.end_remainder}, r: ${r}, cap: ${capacity}, interval: ${interval}`);
 
         // Candle Y-transform: (A = scale, B = shift)
         self.A = -height / (self.$_hi - self.$_lo)

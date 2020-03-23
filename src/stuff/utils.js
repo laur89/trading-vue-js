@@ -376,7 +376,7 @@ export default {
     },
 
     fast_f_for_range2(arr, range, movement, interval) {
-        console.log(`  ->  Zstart: ${JSON.stringify(range)}`);
+        //console.log(`  ->  Zstart: ${JSON.stringify(range)}`);
 
         const ia = new IndexedArray(arr, '0');
         ia.fetch(range.end - range.end_remainder);  // move cursor to current, pre-move end
@@ -385,35 +385,33 @@ export default {
         // first define end; find where end cursor is to be moved:
         const end_movement = range.end_remainder + movement[1];  // effective movement of right-hand-side in ms
         let candle_count_delta = Math.floor(end_movement / interval);  // negative if end_movement < 0 (ie moving back), else positive
-        let visible_candles = range.candlesToShow + candle_count_delta;
 
         let end_idx = ia.cursor + candle_count_delta;
-        if (end_idx > arr.length-1) end_idx = arr.length-1;
+        if (end_idx < 2) end_idx = 2;
+        else if (end_idx > arr.length-1) {
+            candle_count_delta -= (end_idx - (arr.length - 1));
+            end_idx = arr.length-1;
+            //if (end_movement > range.delta - 10 * interval) {
+            //    end_movement -= 300
+            //}
+        }
+
         const end_remainder = end_movement - candle_count_delta * interval;
 
-        // ...now define our start:
-        const start_movement = range.start_remainder + movement[0];  // effective movement of left-hand-side in ms
-        candle_count_delta = Math.ceil(start_movement / interval);  // negative if start_movement < 0 (ie moving back), else positive
-        visible_candles -= candle_count_delta;
-        const start_remainder = start_movement - candle_count_delta * interval;
+        let delta = range.delta + movement[1] - movement[0];
+        let visible_candles = Math.floor(delta / interval);
 
         const data = [];
-        //for (let i = Math.max(0, end_idx - candlesToShow + 1); i <= end_idx && i < arr.length; i++) {
-        //data.push(arr[i]);
-        //}
-        //const data = arr.slice(Math.max(0, end_idx - range.candlesToShow + 1), end_idx + 1);
         for (let i = end_idx; i >= 0 && i > end_idx - visible_candles; i--) {
             data.push(arr[i]);
         }
 
-        const delta = (visible_candles - 1) * interval + end_remainder - start_remainder;
-
-        //return [ start, end, end_remainder, start_remainder, delta, data ]
+        //return [ end, end_remainder, delta, data ]
         return [
-            data[data.length-1][0] + start_remainder,  // TODO: data could be empty!!
             data[0][0] + end_remainder,
             end_remainder,
-            start_remainder, delta, data
+            delta,
+            data,
         ]
     },
 
@@ -486,8 +484,8 @@ export default {
             end_idx = ia.nexthigh !== null ? ia.nexthigh : ia.nextlow;  // note we have affinity for looking forward/into future;
         }
 
-        const start_idx = Math.max(0, end_idx - range.candlesToShow + 1);
-        const start_remainder = (end_idx - start_idx) * interval - range.delta;
+        //const start_idx = Math.max(0, end_idx - range.candlesToShow + 1);
+        //const start_remainder = (end_idx - start_idx) * interval - range.delta;
 
         const candles = []
         //for (let i = Math.max(0, end_idx - range.candlesToShow + 1); i <= end_idx && i < arr.length; i++) {
@@ -495,13 +493,14 @@ export default {
         //}
         //        const candles = arr.slice(Math.max(0, end_idx - range.candlesToShow + 1), end_idx + 1);
 
-        for (let i = end_idx; i >= 0 && i > end_idx - range.candlesToShow; i--) {
+        const visible_candles = Math.floor(range.delta / interval);
+        for (let i = end_idx; i >= 0 && i > end_idx - visible_candles; i--) {
             candles.push(arr[i]);
         }
 
         // TODO: shouldn't we return decreased delta if start_idx had to be decreased?
 
-        return [arr[end_idx][0], candles[0][0] + start_remainder, start_remainder, candles];
+        return [arr[end_idx][0], candles];
     },
 
     now() { return new Date().getTime() },
@@ -595,18 +594,17 @@ export default {
             }
         }
 
-        let start, end, end_remainder = 0, start_remainder, delta = range.delta, data;
+        let end, end_remainder = 0, delta = range.delta, data;
         if (Array.isArray(movement)) {
-            [ start, end, end_remainder, start_remainder, delta, data ] = this.fast_f_for_range2(arr, range, movement, interval);
+            [ end, end_remainder, delta, data ] = this.fast_f_for_range2(arr, range, movement, interval);
         } else {  // typeof movement == 'number'
-            [end, start, start_remainder, data] = this.fast_f_for_end_timestamp2(arr, range, movement, interval);
+            [end, data] = this.fast_f_for_end_timestamp2(arr, range, movement, interval);
         }
 
         return {
-            start,
+            start: end - delta,
             end,
             end_remainder,
-            start_remainder,
             delta,
             data,
         };

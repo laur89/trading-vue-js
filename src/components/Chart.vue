@@ -138,7 +138,6 @@
                         Object.assign(this.range, {
                             //start,  // TODO: do we want/need to pass&store this? 'delta' prop should cover this no?
                             //end,
-                            candlesToShow: Utils.candles_in_view(start, end, this.interval),
                             delta: end - start,
                         })
                         break;
@@ -194,18 +193,16 @@
                         return data;
                     }
                     case 2: {
-                        const { start, end, end_remainder, start_remainder, delta, data } = Utils.fast_f2(
+                        const { start, end, end_remainder, delta, data } = Utils.fast_f2(
                             this.ohlcv,
                             this.range,
                             movement,
                             this.interval,
                         );
 
-                        console.log(JSON.stringify({
-                            movement, start, end, end_remainder, start_remainder, delta,
-                            candlesToShow: data.length,
-                        }))
-                        console.log(`  returned data len :${data.length}`)
+                        //console.log(JSON.stringify({
+                        //    movement, start, end, end_remainder, delta,
+                        //}))
 
                         const range_changed = this.range.start !== start || this.range.end !== end;
 
@@ -215,8 +212,7 @@
 
                         if (range_changed) {
                             this.range_changed({
-                                start, end, end_remainder, start_remainder, delta,
-                                candlesToShow: data.length,
+                                start, end, end_remainder, delta,
                             })
                         }
 
@@ -380,8 +376,6 @@
                     end: -1,  // what time is at our current view's rightmost edge; TODO: semantics need to be specified
                     delta: -1,  // end - start - (sum of gaps' ranges)
                     gaps: null,  // null if we're currently spanning no gaps, otherwise non-empty array of gaps; only used if $props.gap_collapse=1
-                    candlesToShow: -1,  // how many datapoints/candles in our current view (w/ weekend-gaps collapsed);
-                    start_remainder: 0,  // how many ms from leftmost candle to left edge; <= 0
                     end_remainder: 0,  // how many ms from rightmost candle to right edge; >= 0
                 },
 
