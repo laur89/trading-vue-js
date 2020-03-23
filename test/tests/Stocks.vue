@@ -9,7 +9,6 @@
 <script>
 import TradingVue from '../../src/TradingVue.vue'
 import Data from '../data/data_aapl.json'
-import Utils from '../../src/stuff/utils.js'
 
 export default {
     name: 'Stocks',
