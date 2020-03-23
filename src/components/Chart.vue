@@ -321,8 +321,8 @@ export default {
         },
         update_last_candle() {
             // TODO: add last values for all overlays
-            this.last_candle = this.ohlcv ?
-                this.ohlcv[this.ohlcv.length - 1] : undefined
+            const d = this.ohlcv
+            this.last_candle = d ? d[d.length - 1] : []
         }
     },
     computed: {
@@ -394,10 +394,10 @@ export default {
             // Time range in our current view (ie in visible range)
             range: {
                 start: -1,  // only used w/ v1 collapse
-                end: -1,  // what time is at our current view's rightmost edge; TODO: semantics need to be specified
+                end: -1,  // what time is at our current view's rightmost edge;
                 delta: -1,  // end - start - (sum of gaps' ranges)
                 gaps: null,  // null if we're currently spanning no gaps, otherwise non-empty array of gaps; only used if $props.gap_collapse=1
-                end_remainder: 0,  // how many ms from rightmost candle to right edge; >= 0
+                end_remainder: 0,  // how many ms from rightmost candle to right edge; >= 0; only used if $props.gap_collapse=2
             },
 
             gaps: [],  // data gaps for our _entire_ available main chart data range

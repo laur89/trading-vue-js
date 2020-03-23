@@ -62,13 +62,13 @@ export default class Price {
         ctx.setLineDash([])
     }
 
+    // get the last/rightmost visible bar
     last_bar() {
 
         if (!this.data.length) return undefined
 
         let layout = this.comp.$props.layout
-        const last = this.data[this.data.length - 1]
-        //let y = layout.$2screen(last[4])  // TODO var not used
+        const last = this.data[0]
         const cndl = layout.c_magnet(last[0])
 
         return {
