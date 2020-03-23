@@ -95,7 +95,16 @@ function Layout(_chart) {
 
         for (let i = 0; i < sub.length; i++) {
             const p = sub[i]
-            const mid_x = Utils.t2screen(p[0], range, self.spacex)
+            let mid_x;
+            switch ($p.gap_collapse) {
+                case 1:
+                    mid_x = Utils.t2screen(p[0], range, self.spacex)
+                    break;
+                case 2:
+                    mid_x = self.startx - self.px_step * i;
+                    break;
+            }
+
             self.candles.push({
                 x: mid_x,
                 w: self.px_step * $p.config.CANDLEW,
@@ -106,13 +115,24 @@ function Layout(_chart) {
                 raw: p,  // raw candle entity
             })
 
-            // Clear volume bar if there is a time gap
-            if (sub[i-1] && p[0] - sub[i-1][0] > interval) {
-                prev = null
+            let x1, x2;
+            switch ($p.gap_collapse) {
+                case 1:
+                    // Clear volume bar if there is a time gap
+                    if (sub[i+1] && p[0] - sub[i+1][0] > interval) {
+                        prev = null
+                    }
+
+                    x1 = prev || Math.floor(mid_x - self.px_step * 0.5)
+                    x2 = Math.floor(mid_x + self.px_step * 0.5) - 0.5
+                    prev = x2 + vol_splitter
+                    break;
+                case 2:
+                    x1 = Math.floor(mid_x + self.px_step * 0.5)
+                    x2 = Math.floor(mid_x - self.px_step * 0.5) - 0.5
+                    break;
             }
 
-            const x1 = prev || Math.floor(mid_x - self.px_step * 0.5)
-            const x2 = Math.floor(mid_x + self.px_step * 0.5) - 0.5
             self.volume.push({
                 x1,
                 x2,
@@ -120,7 +140,6 @@ function Layout(_chart) {
                 green: p[4] >= p[1],  // check if C equal-or-larger than O
                 raw: p
             })
-            prev = x2 + vol_splitter
         }
     }
 

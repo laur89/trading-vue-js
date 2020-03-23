@@ -18,7 +18,7 @@ function GridMaker(id, params, master_grid = null) {
         prec: -1,  // (sidebar?) precision
         sb: -1,  // sidebar width
         spacex: -1,  // horizontal space (px) to draw on
-        startx: -1,  // x coordinate (px) for first/starting candle
+        startx: -1,  // x coordinate (px) for first/starting candle; note we start rendering from right-hand side
         A: -1,  // TODO what is this?
         B: -1,  // TODO what is this?
         t_step: -1,  // time step at which to draw vertical grid lines at
@@ -176,7 +176,16 @@ function GridMaker(id, params, master_grid = null) {
 
         // px / time ratio
         const r = self.spacex / range.delta  // ms per 1px
-        self.startx = (sub[0][0] - range.start) * r
+
+        switch ($p.gap_collapse) {
+            case 1:
+                self.startx = self.spacex - (range.end - sub[0][0]) * r;
+                break;
+            case 2:
+                self.startx = self.spacex - range.end_remainder * r;
+                break;
+        }
+        console.log(`spacex: ${self.spacex},startx: ${self.startx}, range.end_remainder: ${range.end_remainder}, r: ${r}, cap: ${capacity}, interval: ${interval}`);
 
         // Candle Y-transform: (A = scale, B = shift)
         self.A = -height / (self.$_hi - self.$_lo)
