@@ -290,7 +290,7 @@ export default class DCCore extends DCEvents {
 
         if (chartData.hasOwnProperty('meta')) {
             chartData.meta.markers.forEach(prop => this.dynamicData[prop] = true)  // isEnd, isHead, isBeginning, isTail
-            delete chartData.meta  // clean up the metadata as it's not part of the chart
+            delete chartData.meta  // clean up the metadata as it's not part of the chart payload
         }
     }
 

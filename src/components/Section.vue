@@ -103,10 +103,10 @@ export default {
 
             // Split offchart data between offchart grids
             if (id > 0) {
-                const all = p.data
+                const all = p.data  // contains _all_ offcharts' data
                 p.data = [p.data[id - 1]]
                 // Merge offchart overlays with custom ids with
-                // the existing onse (by comparing the grid ids)
+                // the existing ones (by comparing the grid ids)
                 p.data.push(...all.filter(
                     x => x.grid && x.grid.id === id))
             }

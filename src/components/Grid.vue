@@ -31,27 +31,27 @@ export default {
     mixins: [Canvas, UxList],
     components: { Crosshair, KeyboardListener },
     created() {
-        // List of all possible overlays (builtin + custom)
-        this._list = [
-            Spline, Splines, Range, Trades, Channel, Segment,
-            Candles, Volume, Splitters, LineTool, RangeTool
-        ]
-        .concat(this.$props.overlays)
-        this._registry = {}
+        this._registry = {}  // overlay type ('Spline', 'EMA'...) to overlay implementation
+        const tools = [];
 
         // We need to know which components we will use.
         // Custom overlay components overwrite built-ins:
-        const tools = []
-        this._list.forEach((x, i) => {
-            const use_for = x.methods.use_for()
-            if (x.methods.tool) tools.push({
+
+        // Loop over built-in & custom overlays:
+        [
+            Spline, Splines, Range, Trades, Channel, Segment,
+            Candles, Volume, Splitters, LineTool, RangeTool
+        ].concat(this.$props.overlays).forEach(ol => {
+            const use_for = ol.methods.use_for();
+            if (ol.methods.tool) tools.push({
                 use_for,
-                info: x.methods.tool()
-            })
+                info: ol.methods.tool()
+            });
             use_for.forEach(indicator => {
-                this._registry[indicator] = i
-            })
+                this._registry[indicator] = ol
+            });
         })
+
         this.$emit('custom-event', {
             event: 'register-tools',
             args: tools
@@ -126,13 +126,21 @@ export default {
             })
             this.remove_all_ux(layer)
         },
-        get_overlays(h) {
+
+        /**
+         * create & return overlays for our section (either main- or sub-section)
+         * represented by this Grid.
+         *
+         * @param createElement
+         * @returns {unknown[]}
+         */
+        get_overlays(createElement) {
             // Distributes overlay data & settings according
             // to this._registry; returns compo list
-            const comp_list = [], count = {}
+            const comp_list = [], type_counts = {}
 
-            for (let d of this.$props.data) {
-                let comp = this._list[this._registry[d.type]]
+            for (const d of this.$props.data) {  // for each data block, be it onchart/offchart entity, or main candles
+                const comp = this._registry[d.type]
                 if (comp) {
                     if(comp.methods.calc) {
                         comp = this.inject_renderer(comp)
@@ -146,13 +154,14 @@ export default {
                         tf: d.tf,
                         last: d.last
                     })
-                    count[d.type] = 0
+                    type_counts[d.type] = 0
                 }
             }
-            return comp_list.map((x, i) => h(x.cls, {
+
+            return comp_list.map((x, i) => createElement(x.cls, {
                     on: this.layer_events,
                     attrs: Object.assign(this.common_props(), {
-                        id: `${x.type}_${count[x.type]++}`,
+                        id: `${x.type}_${type_counts[x.type]++}`,
                         type: x.type,
                         data: x.data,
                         settings: x.settings,

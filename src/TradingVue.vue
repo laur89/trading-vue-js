@@ -380,16 +380,16 @@ export default {
         // event registration, consider using something like https://github.com/sandeepk01/vue-event-handler ?
         // or any other event-bus, or better yet - vuex
         register_range_changed_listener(onRangeChanged) {
-            if (onRangeChanged !== null) {
-                this.$refs.chart.$off('range-changed')
+            if (onRangeChanged) {
+                this.$refs.chart.$off('range-changed')  // TODO: should we?
                 this.$refs.chart.$on('range-changed',
                     r => onRangeChanged(r, this.$refs.chart.interval)
                 )
             }
         },
         register_cursor_lock_listener(onCursorLockChanged) {
-            if (onCursorLockChanged !== null) {
-                this.$refs.chart.$off('cursor-locked')
+            if (onCursorLockChanged) {
+                this.$refs.chart.$off('cursor-locked')  // TODO: should we?
                 this.$refs.chart.$on('cursor-locked', onCursorLockChanged)
             }
 
