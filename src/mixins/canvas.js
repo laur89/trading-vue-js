@@ -48,8 +48,7 @@ export default {
             ].concat(props.hs || []))
         },
         redraw() {
-            if (!this.renderer) return
-            this.renderer.update()
+            if (this.renderer) this.renderer.update()
         }
     },
     watch: {
