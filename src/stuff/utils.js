@@ -243,9 +243,10 @@ export default {
      */
     resolve_gaps(data, interval) {
         const gaps = [];
-        let start = data.length !== 0 ? data[0][0] : -1;
+        let start = data.length !== 0 ? data[data.length-1][0] : -1;
 
-        for (let i = 1; i < data.length; i++) {
+        //for (let i = 1; i < data.length; i++) {
+        for (let i = data.length-2; i >= 0; i--) {
             const end = data[i][0];
             if (end - start > WKD_GAP_DURATION) {
                 gaps.push({
@@ -496,7 +497,6 @@ export default {
         for (let i = end_idx; i >= 0 && i > end_idx - visible_candles; i--) {
             candles.push(arr[i]);
         }
-
         // TODO: shouldn't we return decreased delta if start_idx had to be decreased?
 
         return [arr[end_idx][0], candles];
@@ -603,7 +603,7 @@ export default {
             }
         }
 
-        let end, end_remainder = 0, delta = range.delta, data;
+        let data, end, end_remainder = 0, delta = range.delta;
         if (Array.isArray(movement)) {
             [ end, end_remainder, delta, data ] = this.fast_f_for_range2(arr, range, movement, interval);
         } else {  // typeof movement == 'number'
@@ -611,7 +611,6 @@ export default {
         }
 
         return {
-            start: end - delta,
             end,
             end_remainder,
             delta,

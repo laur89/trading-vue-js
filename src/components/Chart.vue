@@ -195,7 +195,7 @@ export default {
                     return data;
                 }
                 case 2: {
-                    const { start, end, end_remainder, delta, data } = Utils.fast_f2(
+                    const { end, end_remainder, delta, data } = Utils.fast_f2(
                         this.ohlcv,
                         this.range,
                         movement,
@@ -206,6 +206,10 @@ export default {
                     //    movement, start, end, end_remainder, delta,
                     //}))
 
+                    const gaps = Utils.resolve_gaps(data, this.interval);
+                    let start = end - delta
+                    for (const g of gaps) start -= g.delta
+
                     const range_changed = this.range.start !== start || this.range.end !== end;
 
                     if (range_changed || this.sub.length !== data.length) {
@@ -215,8 +219,11 @@ export default {
                     if (range_changed) {
                         this.range_changed({
                             start, end, end_remainder, delta,
+                            gaps: gaps.length === 0 ? null : gaps,
                         })
                     }
+
+                    //console.log(`start: ${new Date(start)}, end: ${new Date(end)}`)
 
                     return data;
                 }
@@ -261,8 +268,7 @@ export default {
             }
         },
         section_props(i) {
-            return i === 0 ?
-                this.main_section : this.sub_section
+            return i === 0 ? this.main_section : this.sub_section
         },
         init_range() {
             this.calc_interval()
