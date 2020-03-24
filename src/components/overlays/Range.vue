@@ -41,9 +41,9 @@ export default {
             ctx.strokeStyle = this.color
             ctx.beginPath()
 
-            for (var p of this.$props.data) {
-                let x = layout.t2screen(p[0])
-                let y = layout.$2screen(p[1])
+            for (const p of this.$props.data) {
+                const x = layout.t2screen(p[0])
+                const y = layout.$2screen(p[1])
                 ctx.lineTo(x, y)
             }
 
