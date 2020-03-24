@@ -1,4 +1,3 @@
-
 import IndexedArray from 'arrayslicer'
 import Const from './constants';
 const { WKD_GAP_DURATION } = Const
@@ -377,17 +376,54 @@ export default {
         // first define end; find where end cursor is to be moved:
         const end_movement = range.end_remainder + movement[1];  // effective movement of right-hand-side in ms
         let candle_count_delta = Math.floor(end_movement / interval);  // negative if end_movement < 0 (ie moving back), else positive
-        let visible_candles = range.candlesToShow + candle_count_delta;
+
 
         let end_idx = ia.cursor + candle_count_delta;
-        if (end_idx > arr.length-1) end_idx = arr.length-1;
-        const end_remainder = end_movement - candle_count_delta * interval;
+        /*if (end_idx < 2) end_idx = 2;
+        else */if (end_idx > arr.length-1) {
+            //if (visible_candles <= 0)
+            candle_count_delta -= (end_idx - (arr.length - 1));
+            end_idx = null;  // marks we've wandered off into right-hand side extended area
+        }
+        let visible_candles = range.candlesToShow + candle_count_delta;
+
+        let end_remainder = end_movement - candle_count_delta * interval;
+        //console.log(`end CC_delta: ${candle_count_delta}, e_remain: ${end_remainder}`)
 
         // ...now define our start:
         const start_movement = range.start_remainder + movement[0];  // effective movement of left-hand-side in ms
         candle_count_delta = Math.ceil(start_movement / interval);  // negative if start_movement < 0 (ie moving back), else positive
+        //console.log(`start CC_delta: ${candle_count_delta}`)
         visible_candles -= candle_count_delta;
-        const start_remainder = start_movement - candle_count_delta * interval;
+        let start_remainder = start_movement - candle_count_delta * interval;
+
+        // TODO: detect when we've reached left-hand side;
+        // 'start' definition needs to change there; one indication would be that in in data loop below will go negative;
+
+        //console.log(`Dvisible_cand: ${visible_candles}`)
+
+        let end = null;
+        if (end_idx === null) {  // ie we're in right extended area
+            end_idx = arr.length - 1;
+            if (visible_candles <= 2) {
+                end = range.end;
+                end_remainder = end - arr[end_idx][0];  // TODO this is likely buggy; or maybe start_Remainder def. below?
+                start_remainder = 0;
+                visible_candles = 2;
+            }
+        }
+
+        console.log(`aaa: ${end_idx} - ${visible_candles} = ${end_idx - visible_candles}`)
+        if (end_idx - visible_candles <= -1) {  // we've wandered into left-hand side extended area
+            start_remainder += (end_idx - visible_candles + 1) * interval;
+            visible_candles += (end_idx - visible_candles + 1)
+            if (visible_candles <= 3) { // lock at 3rd candle
+                end_idx = 2;
+                end_remainder = 0;
+                start_remainder = range.start - arr[0][0]  // TODO this is likely buggy
+                visible_candles = 3;
+            }
+        }
 
         const data = [];
         //for (let i = Math.max(0, end_idx - candlesToShow + 1); i <= end_idx && i < arr.length; i++) {
@@ -398,14 +434,16 @@ export default {
             data.push(arr[i]);
         }
 
+        const start = data[data.length - 1][0] + start_remainder;
+
         const delta = (visible_candles - 1) * interval + end_remainder - start_remainder;
 
         //return [ start, end, end_remainder, start_remainder, delta, data ]
         return [
-            data[data.length-1][0] + start_remainder,  // TODO: data could be empty!!
-            data[0][0] + end_remainder,
+            start,
+            end === null ? data[0][0] + end_remainder : end,
             end_remainder,
-            start_remainder, delta, data
+            start_remainder, delta, data,
         ]
     },
 
@@ -606,3 +644,4 @@ export default {
     },
 
 }
+
