@@ -8,7 +8,8 @@
             :meta_props="get_meta_props"
             @legend-button-click="button_click">
         </chart-legend>
-        <grid v-bind="grid_props"
+        <grid
+             v-bind="grid_props"
              :grid_id="grid_id"
              @register-kb-listener="register_kb"
              @remove-kb-listener="remove_kb"
@@ -85,10 +86,10 @@ export default {
 
             // Split offchart data between offchart grids
             if (id > 0) {
-                const all = p.data
+                const all = p.data  // contains _all_ offcharts' data
                 p.data = [p.data[id - 1]]
                 // Merge offchart overlays with custom ids with
-                // the existing onse (by comparing the grid ids)
+                // the existing ones (by comparing the grid ids)
                 p.data.push(...all.filter(
                     x => x.grid && x.grid.id === id))
             }
