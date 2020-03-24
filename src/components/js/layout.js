@@ -124,8 +124,8 @@ function Layout(_chart) {
                         prev = null
                     }
 
-                    x1 = prev || Math.floor(mid_x - self.px_step * 0.5)
-                    x2 = Math.floor(mid_x + self.px_step * 0.5) - 0.5
+                    x1 = prev || Math.floor(mid_x + self.px_step * 0.5)
+                    x2 = Math.floor(mid_x - self.px_step * 0.5) - 0.5
                     prev = x2 + vol_splitter
                     break;
                 case 2:
