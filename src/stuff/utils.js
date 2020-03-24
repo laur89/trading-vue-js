@@ -158,6 +158,7 @@ export default {
     fast_filter(arr, t1, t2) {
         if (!arr.length) return [arr, undefined]
         try {
+// TODO: we used to reverse!!:  return new [IndexedArray(arr, '0').getRange(t1, t2).reverse()];
             let ia = new IndexedArray(arr, "0")
             let res = ia.getRange(t1, t2)
             let i0 = ia.valpos[t1].next
@@ -397,7 +398,7 @@ export default {
         const start = define_start(range.start, movement[0]);
         const end = define_end(range.end, movement[1]);
 
-        return [start, end, gaps, new IndexedArray(arr, '0').getRange(start, end)];
+        return [start, end, gaps, new IndexedArray(arr, '0').getRange(start, end).reverse()];
     },
 
     fast_f_for_range2(arr, range, movement, interval) {
@@ -494,7 +495,7 @@ export default {
             }
         }
 
-        return [start, end, gaps, new IndexedArray(arr, '0').getRange(start, end)];
+        return [start, end, gaps, new IndexedArray(arr, '0').getRange(start, end).reverse()];
     },
 
     fast_f_for_end_timestamp2(arr, range, end, interval) {

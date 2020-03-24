@@ -74,11 +74,11 @@ class CursorUpdater {
         let xs;
         switch (this.comp.$props.gap_collapse) {
             case 1: {
-                xs = data.map(x => grid.t2screen(x[0]) + 0.5)  // TODO: why +0.5?
+                xs = data.map(x => grid.t2screen(x[0]) + 0.5)  // TODO: why +0.5? to compensate the +0.5 in layout_fn.t2screen()?
                 break;
             }
             case 2: {
-                xs = data.map((_, i) => (grid.startx - grid.px_step * i) + 0.5);  // should we -0.5 instead?
+                xs = data.map((_, i) => (grid.startx - grid.px_step * i) /*+ 0.5*/);  // should we -0.5 instead?
                 break;
             }
         }
