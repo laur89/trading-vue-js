@@ -139,6 +139,7 @@ export default {
                         //start,  // TODO: do we want/need to pass&store this? 'delta' prop should cover this no?
                         //end,
                         delta: end - start,
+                        candlesToShow: Utils.candles_in_view(start, end, this.interval),
                     })
                     break;
                 default:
@@ -193,7 +194,7 @@ export default {
                     return data;
                 }
                 case 2: {
-                    const { start, end, end_remainder, delta, data } = Utils.fast_f2(
+                    const { start, end, end_remainder, start_remainder, delta, data } = Utils.fast_f2(
                         this.ohlcv,
                         this.range,
                         movement,
@@ -210,9 +211,12 @@ export default {
                         Utils.overwrite(this.sub, data)
                     }
 
+                    const gaps = Utils.resolve_gaps(data, this.interval);
                     if (range_changed) {
                         this.range_changed({
-                            start, end, end_remainder, delta,
+                            start, end, end_remainder, start_remainder, delta,
+                            candlesToShow: data.length,
+                            gaps: gaps.length === 0 ? null : gaps,
                         })
                     }
 
@@ -259,8 +263,7 @@ export default {
             }
         },
         section_props(i) {
-            return i === 0 ?
-                this.main_section : this.sub_section
+            return i === 0 ? this.main_section : this.sub_section
         },
         init_range() {
             this.calc_interval()
@@ -376,7 +379,9 @@ export default {
                 end: -1,  // what time is at our current view's rightmost edge;
                 delta: -1,  // end - start - (sum of gaps' ranges)
                 gaps: null,  // null if we're currently spanning no gaps, otherwise non-empty array of gaps; only used if $props.gap_collapse=1
-                end_remainder: 0,  // how many ms from rightmost candle to right edge; >= 0; only used if $props.gap_collapse=2
+                candlesToShow: -1,  // how many datapoints/candles in our current view (w/ weekend-gaps collapsed);
+                start_remainder: 0,  // how many ms from leftmost candle to left edge; <= 0
+                end_remainder: 0,  // how many ms from rightmost candle to right edge; >= 0
             },
 
             gaps: [],  // data gaps for our _entire_ available main chart data range
@@ -422,7 +427,8 @@ export default {
         data: {
             handler: function(n, p) {
                 const endTimestamp = this.sub.length === 0 ? this.init_range() : undefined  // init_range() should be called first thing here!
-                Utils.overwrite(this.gaps, Utils.resolve_gaps(this.ohlcv, this.interval))
+                // TODO: find a better solution thatn ohlcv.slice().reverse()!:
+                Utils.overwrite(this.gaps, Utils.resolve_gaps(this.ohlcv.slice(0).reverse(), this.interval))
                 this.subset(endTimestamp)
 
                 // TODO: data changed detection not working?:

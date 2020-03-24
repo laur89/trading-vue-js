@@ -153,16 +153,7 @@ export default {
     // Fast filter. Really fast, like 10X
     fast_filter(arr, t1, t2) {
         if (arr.length === 0) return arr
-
-        try {
-            return new IndexedArray(arr, '0').getRange(t1, t2)
-        } catch(e) {
-            // Something wrong with fancy slice lib
-            // Fast fix: fallback to filter
-            return arr.filter(x =>
-                x[0] >= t1 && x[0] <= t2
-            )
-        }
+        return new IndexedArray(arr, '0').getRange(t1, t2).reverse();
     },
 
     /**
@@ -245,7 +236,8 @@ export default {
         const gaps = [];
         let start = data.length !== 0 ? data[0][0] : -1;
 
-        for (let i = 1; i < data.length; i++) {
+        //for (let i = 1; i < data.length; i++) {
+        for (let i = data.length-1; i >= 0; i--) {
             const end = data[i][0];
             if (end - start > WKD_GAP_DURATION) {
                 gaps.push({
@@ -372,7 +364,7 @@ export default {
         const start = define_start(range.start, movement[0]);
         const end = define_end(range.end, movement[1]);
 
-        return [start, end, gaps, new IndexedArray(arr, '0').getRange(start, end)];
+        return [start, end, gaps, new IndexedArray(arr, '0').getRange(start, end).reverse()];
     },
 
     fast_f_for_range2(arr, range, movement, interval) {
@@ -385,32 +377,35 @@ export default {
         // first define end; find where end cursor is to be moved:
         const end_movement = range.end_remainder + movement[1];  // effective movement of right-hand-side in ms
         let candle_count_delta = Math.floor(end_movement / interval);  // negative if end_movement < 0 (ie moving back), else positive
+        let visible_candles = range.candlesToShow + candle_count_delta;
 
         let end_idx = ia.cursor + candle_count_delta;
-        if (end_idx < 2) end_idx = 2;
-        else if (end_idx > arr.length-1) {
-            candle_count_delta -= (end_idx - (arr.length - 1));
-            end_idx = arr.length-1;
-            //if (end_movement > range.delta - 10 * interval) {
-            //    end_movement -= 300
-            //}
-        }
-
+        if (end_idx > arr.length-1) end_idx = arr.length-1;
         const end_remainder = end_movement - candle_count_delta * interval;
 
-        let delta = range.delta + movement[1] - movement[0];
-        const start_idx_minus_one = end_idx - Math.floor(delta / interval);  // end_idx - number_of_visible_candles
+        // ...now define our start:
+        const start_movement = range.start_remainder + movement[0];  // effective movement of left-hand-side in ms
+        candle_count_delta = Math.ceil(start_movement / interval);  // negative if start_movement < 0 (ie moving back), else positive
+        visible_candles -= candle_count_delta;
+        const start_remainder = start_movement - candle_count_delta * interval;
 
         const data = [];
-        for (let i = end_idx; i >= 0 && i > start_idx_minus_one; i--) {
+        //for (let i = Math.max(0, end_idx - candlesToShow + 1); i <= end_idx && i < arr.length; i++) {
+        //data.push(arr[i]);
+        //}
+        //const data = arr.slice(Math.max(0, end_idx - range.candlesToShow + 1), end_idx + 1);
+        for (let i = end_idx; i >= 0 && i > end_idx - visible_candles; i--) {
             data.push(arr[i]);
         }
 
+        const delta = (visible_candles - 1) * interval + end_remainder - start_remainder;
+
+        //return [ start, end, end_remainder, start_remainder, delta, data ]
         return [
-            data[0][0] + end_remainder,  // end, ie rightmost edge
-            end_remainder,  // end - last_candle_timestamp; >= 0
-            delta,
-            data,
+            data[data.length-1][0] + start_remainder,  // TODO: data could be empty!!
+            data[0][0] + end_remainder,
+            end_remainder,
+            start_remainder, delta, data
         ]
     },
 
@@ -469,7 +464,7 @@ export default {
             }
         }
 
-        return [start, end, gaps, new IndexedArray(arr, '0').getRange(start, end)];
+        return [start, end, gaps, new IndexedArray(arr, '0').getRange(start, end).reverse()];
     },
 
     fast_f_for_end_timestamp2(arr, range, end, interval) {
@@ -483,8 +478,8 @@ export default {
             end_idx = ia.nexthigh !== null ? ia.nexthigh : ia.nextlow;  // note we have affinity for looking forward/into future;
         }
 
-        //const start_idx = Math.max(0, end_idx - range.candlesToShow + 1);
-        //const start_remainder = (end_idx - start_idx) * interval - range.delta;
+        const start_idx = Math.max(0, end_idx - range.candlesToShow + 1);
+        const start_remainder = (end_idx - start_idx) * interval - range.delta;
 
         const candles = []
         //for (let i = Math.max(0, end_idx - range.candlesToShow + 1); i <= end_idx && i < arr.length; i++) {
@@ -492,14 +487,14 @@ export default {
         //}
         //        const candles = arr.slice(Math.max(0, end_idx - range.candlesToShow + 1), end_idx + 1);
 
-        const visible_candles = Math.floor(range.delta / interval);
-        for (let i = end_idx; i >= 0 && i > end_idx - visible_candles; i--) {
+        for (let i = end_idx; i >= 0 && i > end_idx - range.candlesToShow; i--) {
             candles.push(arr[i]);
         }
 
         // TODO: shouldn't we return decreased delta if start_idx had to be decreased?
 
-        return [arr[end_idx][0], candles];
+        // return [end, start, start_remainder, data]
+        return [candles[0][0], candles[candles.length-1][0] + start_remainder, start_remainder, candles];
     },
 
     now() { return new Date().getTime() },
@@ -593,17 +588,18 @@ export default {
             }
         }
 
-        let end, end_remainder = 0, delta = range.delta, data;
+        let start, end, end_remainder = 0, start_remainder, delta = range.delta, data;
         if (Array.isArray(movement)) {
-            [ end, end_remainder, delta, data ] = this.fast_f_for_range2(arr, range, movement, interval);
+            [ start, end, end_remainder, start_remainder, delta, data ] = this.fast_f_for_range2(arr, range, movement, interval);
         } else {  // typeof movement == 'number'
-            [end, data] = this.fast_f_for_end_timestamp2(arr, range, movement, interval);
+            [end, start, start_remainder, data] = this.fast_f_for_end_timestamp2(arr, range, movement, interval);
         }
 
         return {
-            start: end - delta,
+            start,
             end,
             end_remainder,
+            start_remainder,
             delta,
             data,
         };
