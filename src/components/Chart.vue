@@ -431,7 +431,8 @@ export default {
         data: {
             handler: function(n, p) {
                 const endTimestamp = this.sub.length === 0 ? this.init_range() : undefined  // init_range() should be called first thing here!
-                Utils.overwrite(this.gaps, Utils.resolve_gaps(this.ohlcv, this.interval))
+                // TODO: find a better solution thatn ohlcv.slice().reverse()!:
+                Utils.overwrite(this.gaps, Utils.resolve_gaps(this.ohlcv.slice(0).reverse(), this.interval))
                 this.subset(endTimestamp)
 
                 // TODO: data changed detection not working?:

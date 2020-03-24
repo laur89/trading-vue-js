@@ -153,16 +153,7 @@ export default {
     // Fast filter. Really fast, like 10X
     fast_filter(arr, t1, t2) {
         if (arr.length === 0) return arr
-
-        try {
-            return new IndexedArray(arr, '0').getRange(t1, t2)
-        } catch(e) {
-            // Something wrong with fancy slice lib
-            // Fast fix: fallback to filter
-            return arr.filter(x =>
-                x[0] >= t1 && x[0] <= t2
-            )
-        }
+        return new IndexedArray(arr, '0').getRange(t1, t2).reverse();
     },
 
     /**
@@ -373,7 +364,7 @@ export default {
         const start = define_start(range.start, movement[0]);
         const end = define_end(range.end, movement[1]);
 
-        return [start, end, gaps, new IndexedArray(arr, '0').getRange(start, end)];
+        return [start, end, gaps, new IndexedArray(arr, '0').getRange(start, end).reverse()];
     },
 
     fast_f_for_range2(arr, range, movement, interval) {
@@ -470,7 +461,7 @@ export default {
             }
         }
 
-        return [start, end, gaps, new IndexedArray(arr, '0').getRange(start, end)];
+        return [start, end, gaps, new IndexedArray(arr, '0').getRange(start, end).reverse()];
     },
 
     fast_f_for_end_timestamp2(arr, range, end, interval) {
