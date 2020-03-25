@@ -532,7 +532,8 @@ export default {
         }
         // TODO: shouldn't we return decreased delta if start_idx had to be decreased?
 
-        return [arr[end_idx][0], candles];
+        const end_remainder = 2.5 * interval;  // leave a little empty buffer to the right
+        return [arr[end_idx][0] + end_remainder, end_remainder, candles];
     },
 
     now() { return new Date().getTime() },
@@ -786,7 +787,7 @@ export default {
         if (Array.isArray(movement)) {
             [ end, end_remainder, delta, data ] = this.fast_f_for_range2(arr, range, movement, interval);
         } else {  // typeof movement == 'number'
-            [end, data] = this.fast_f_for_end_timestamp2(arr, range, movement, interval);
+            [end, end_remainder, data] = this.fast_f_for_end_timestamp2(arr, range, movement, interval);
         }
 
         return {
