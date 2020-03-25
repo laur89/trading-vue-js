@@ -240,7 +240,7 @@ export default {
                     //    movement, start, end, end_remainder, delta,
                     //}))
 
-                    const gaps = Utils.resolve_gaps(data, this.interval);
+                    const gaps = Utils.resolve_gaps(data, this.interval, this.$props.gap_collapse);
                     let start = end - delta
                     for (const g of gaps) start -= g.delta
 
@@ -557,7 +557,7 @@ export default {
                 this.init_secondary_series_tf();
 
                 // TODO: find a better solution thatn ohlcv.slice().reverse()!:
-                Utils.overwrite(this.gaps, Utils.resolve_gaps(this.ohlcv.slice(0).reverse(), this.interval))
+                Utils.overwrite(this.gaps, Utils.resolve_gaps(this.ohlcv.slice(0).reverse(), this.interval, this.$props.gap_collapse))
                 this.subset(endTimestamp)  // TODO: only call subset() here if endTimestamp !== undefined, ie we're doing our first init?
 
                 // Fixes Infinite loop warn, when the subset is empty
