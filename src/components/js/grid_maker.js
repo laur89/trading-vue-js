@@ -28,6 +28,8 @@ function GridMaker(id, params, master_grid = null) {
         $_step: null,  // grid lines' vertical/y step in px;
         $_hi: -1,  // max vertical range w/ the buffer, ie absolute
         $_lo: -1,  // min vertical range w/ the buffer, ie absolute
+        //volume: []  // list of volbar definitions, created in layout.js for master grid
+        //candles: [],  // list of candle definitions, created in layout.js for master grid
     }
 
     const lm = layers_meta[id]

@@ -223,8 +223,8 @@ export default {
      * and return them.
      * Note the returned array of gaps will be chronologically ordered.
      *
-     * TODO: as per C451's recommendation, gaps should be
-     * resolved in subset() on-demand, and for the _estimated_
+     * TODO: as per C451's recommendation, gaps for the entirety of main data
+     * should be resolved in subset() on-demand, and for the _estimated_
      * range only; if it's done for the full data-set as now,
      * then 1mil+ datapoint sets will likely start slowing things down.
      *
