@@ -150,8 +150,8 @@ export default {
                 d = 0.5
             }
 
-            const start = data[start_idx][0] - this.interval * d;
-            const end = data[last_idx][0] + this.interval * min_len;
+            const start = data[start_idx][0] - this.interval * d;  // note the last subtraction is to fit the leftmost candle nicely/as a whole on our view
+            const end = data[last_idx][0]  // + this.interval * min_len; <-- right-hand buffer set... elsewhere?
 
             Object.assign(this.range, {
                 delta: end - start,

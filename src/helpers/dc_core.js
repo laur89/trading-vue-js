@@ -193,8 +193,8 @@ export default class DCCore extends DCEvents {
                     const d = this.data.chart.data
                     const tail = d.length === 0 ? -1 : d[d.length - 1][0]
 
-                    // if the tail of last data is close enough to our visible tail OR we just pulled the tail (1st req),
-                    // subscribe to live data feed:
+                    // if the tail of last/latest pulled data is close enough to our visible tail OR
+                    // we just pulled the tail (1st req), subscribe to live data feed:
                     if (this.dynamicData.sub !== null && (this.dynamicData.hasOwnProperty('isTail') ||
                             this.dynamicData.rangeToQuery.end >= tail - this.dynamicData.timeframe * 100)) {
                         delete this.dynamicData.isTail
