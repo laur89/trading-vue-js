@@ -424,7 +424,7 @@ export default {
 
         const end_remainder = end_movement - candle_count_delta * interval;
 
-        let delta = range.delta + movement[1] - movement[0];
+        const delta = range.delta + movement[1] - movement[0];
         const start_idx_minus_one = end_idx - Math.floor(delta / interval);  // end_idx - number_of_visible_candles
 
         const data = [];
@@ -748,7 +748,7 @@ export default {
 
     /**
      * Calculate how many datapoints/candles fit in our current
-     * view based on give params.
+     * view based on given params.
      * @param start
      * @param end
      * @param interval
