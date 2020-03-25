@@ -157,7 +157,15 @@ export default {
                 delta: end - start,
             });
 
-            return end;
+            switch (this.$props.gap_collapse) {
+                case 2:
+                    return {
+                        e: end,
+                        c: 2.5,  // leave bit more empty buffer space to the right
+                    };
+                default:
+                    return end;
+            }
         },
 
         /**

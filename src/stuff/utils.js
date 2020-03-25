@@ -473,6 +473,14 @@ export default {
     },
 
     fast_f_for_end_timestamp2(arr, range, end, interval) {
+        let end_remainder;
+        if (typeof end === 'object') {
+            end_remainder = (end.c || 0) * interval;
+            end = end.e;
+        } else {  // typeof end == 'number'
+            end_remainder = 0.5 * interval;  // leave a little empty buffer to the right
+        }
+
         const ia = new IndexedArray(arr, '0');
         ia.fetch(end);
 
@@ -498,7 +506,6 @@ export default {
         }
         // TODO: shouldn't we return decreased delta if start_idx had to be decreased?
 
-        const end_remainder = 2.5 * interval;  // leave a little empty buffer to the right
         return [arr[end_idx][0] + end_remainder, end_remainder, candles];
     },
 
@@ -606,7 +613,7 @@ export default {
         let data, end, end_remainder = 0, delta = range.delta;
         if (Array.isArray(movement)) {
             [ end, end_remainder, delta, data ] = this.fast_f_for_range2(arr, range, movement, interval);
-        } else {  // typeof movement == 'number'
+        } else {  // typeof movement == number|object
             [end, end_remainder, data] = this.fast_f_for_end_timestamp2(arr, range, movement, interval);
         }
 
