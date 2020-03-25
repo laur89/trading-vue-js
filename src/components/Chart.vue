@@ -55,6 +55,7 @@ export default {
 
         // Initial layout (All measurements for the chart)
         this.sub = this.subset(this.init_range())
+        this.init_secondary_series_tf();
         Utils.overwrite(this.range, this.range) // Fix for IB mode
         this._layout = new Layout(this)
 
@@ -105,6 +106,29 @@ export default {
             this.interval_ms = tf || Utils.detect_interval(this.ohlcv)
             this.interval = this.$props.ib ? 1 : this.interval_ms
         },
+
+        /**
+         * Define & store timeframes for our onchart&offchart series,
+         * if already not defined.
+         * The reason we're doing this is that their timeframes may
+         * be longer than the main chart data's.
+         */
+        init_secondary_series_tf() {
+            const define_tf = d => {
+                if (!d.hasOwnProperty('tf') && d.data.length >= 2) {
+                    d.tf = Utils.detect_interval(d.data)
+                }
+            };
+
+            for (const d of this.offchart) {
+                define_tf(d);
+            }
+
+            for (const d of this.onchart) {
+                define_tf(d);
+            }
+        },
+
         set_ytransform(s) {
             const obj = this.y_transforms[s.grid_id] || {}
             Object.assign(obj, s)
@@ -238,8 +262,8 @@ export default {
                 data: this.ti_map.parse(Utils.fast_filter(
                     d.data,
 // TODO: following 2 lines should be these:
-//                    this.range.start - this.interval,
-//                    this.range.end
+//                    this.range.start - (d.tf || this.interval),
+//                    this.range.end + (d.tf || this.interval)
                     this.ti_map.i2t(this.range[0] - this.interval),
                     this.ti_map.i2t(this.range[1])
                 )[0] || []),
@@ -385,16 +409,16 @@ export default {
 
             // Time range in our current view (ie in visible range)
             range: {
-                start: -1,  // only used w/ v1 collapse
+                start: -1,  // what time is at our current view's leftmost edge;
                 end: -1,  // what time is at our current view's rightmost edge;
                 delta: -1,  // end - start - (sum of gaps' ranges)
-                gaps: null,  // null if we're currently spanning no gaps, otherwise non-empty array of gaps; only used if $props.gap_collapse=1
+                gaps: null,  // null if we're currently spanning no gaps, otherwise non-empty array of gaps;
                 end_remainder: 0,  // how many ms from rightmost candle to right edge; >= 0; only used if $props.gap_collapse=2
             },
 
-            gaps: [],  // data gaps for our _entire_ available main chart data range
+            gaps: [],  // data gaps for our _entire_ available main chart data range; only used if $props.gap_collapse=1
 
-            // Candlestick interval, millis
+            // _main_ chart's candlestick interval/tf, millis
             interval: 0,
 
             // Crosshair states
@@ -453,9 +477,11 @@ export default {
         data: {
             handler: function(n, p) {
                 const endTimestamp = this.sub.length === 0 ? this.init_range() : undefined  // init_range() should be called first thing here!
+                this.init_secondary_series_tf();
+
                 // TODO: find a better solution thatn ohlcv.slice().reverse()!:
                 Utils.overwrite(this.gaps, Utils.resolve_gaps(this.ohlcv.slice(0).reverse(), this.interval))
-                this.subset(endTimestamp)
+                this.subset(endTimestamp)  // TODO: only call subset() here if endTimestamp !== undefined, ie we're doing our first init?
 
                 // TODO: data changed detection not working?:
                 //window.console.log(`d changed?: ${Utils.data_changed(n, p)}`)
