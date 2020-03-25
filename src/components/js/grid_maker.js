@@ -196,11 +196,11 @@ function GridMaker(id, params, master_grid = null) {
         const r = self.spacex / range.delta  // ms per 1px
 
         switch ($p.gap_collapse) {
-            case 1:
-                self.startx = self.spacex - (range.end - sub[0][0]) * r;
-                break;
             case 2:
                 self.startx = self.spacex - range.end_remainder * r;
+                break;
+            default:
+                self.startx = self.spacex - (range.end - sub[0][0]) * r;
                 break;
         }
         //console.log(`spacex: ${self.spacex},startx: ${self.startx}, range.end_remainder: ${range.end_remainder}, r: ${r}, cap: ${capacity}, interval: ${interval}`);

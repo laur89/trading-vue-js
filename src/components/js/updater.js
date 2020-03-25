@@ -31,7 +31,7 @@ class CursorUpdater {
 
             if (grid.id !== e.grid_id) continue
             this.cursor.x = c.is_out && Math.abs(e.x - c.x) >= grid.px_step/2
-                ? grid.t2screen(this.cursor.t)  // TODO: won't work nice when cursor in left extended area in gap_collapse=2 mode
+                ? grid.t2screen(this.cursor.t)
                 : c.x;
 
             this.cursor.y = c.y
@@ -65,14 +65,12 @@ class CursorUpdater {
 
         let xs;
         switch (this.comp.$props.gap_collapse) {
-            case 1: {
-                xs = data.map(x => grid.t2screen(x[0]) + 0.5)  // TODO: why +0.5? to compensate the +0.5 in layout_fn.t2screen()?
-                break;
-            }
-            case 2: {
+            case 2:
                 xs = data.map((_, i) => (grid.startx - grid.px_step * i) /*+ 0.5*/);  // should we -0.5 instead?
                 break;
-            }
+            default:
+                xs = data.map(x => grid.t2screen(x[0]) + 0.5)  // TODO: why +0.5? to compensate the +0.5 in layout_fn.t2screen()?
+                break;
         }
 
         const i = Utils.nearest_a(e.x, xs)[0]

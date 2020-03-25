@@ -97,11 +97,11 @@ function Layout(_chart) {
             const p = sub[i]
             let mid_x;
             switch ($p.gap_collapse) {
-                case 1:
-                    mid_x = Utils.t2screen(p[0], range, self.spacex)
-                    break;
                 case 2:
                     mid_x = self.startx - self.px_step * i;
+                    break;
+                default:  // including gap_collapse v1
+                    mid_x = Utils.t2screen(p[0], range, self.spacex)
                     break;
             }
 
@@ -116,21 +116,24 @@ function Layout(_chart) {
                 raw: p,  // raw candle entity
             })
 
+            // resolve volume-bar coords:
             let x1, x2;
             switch ($p.gap_collapse) {
                 case 1:
+                case 2:
+                    x1 = prev || Math.floor(mid_x + self.px_step * 0.5)
+                    x2 = Math.floor(mid_x - self.px_step * 0.5) - 0.5
+                    prev = x2 - vol_splitter
+                    break;
+                default:  // the old, pre-gap collapsing logic
                     // Clear volume bar if there is a time gap
                     if (sub[i+1] && p[0] - sub[i+1][0] > interval) {
                         prev = null
                     }
 
-                    x1 = prev || Math.floor(mid_x + self.px_step * 0.5)
-                    x2 = Math.floor(mid_x - self.px_step * 0.5) - 0.5
+                    x1 = prev || Math.floor(mid_x - self.px_step * 0.5)
+                    x2 = Math.floor(mid_x + self.px_step * 0.5) - 0.5
                     prev = x2 + vol_splitter
-                    break;
-                case 2:
-                    x1 = Math.floor(mid_x + self.px_step * 0.5)
-                    x2 = Math.floor(mid_x - self.px_step * 0.5) - 0.5
                     break;
             }
 
