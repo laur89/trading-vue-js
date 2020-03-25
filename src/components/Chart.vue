@@ -129,23 +129,9 @@ export default {
             const start = data[start_idx][0] - this.interval * d;
             const end = data[last_idx][0] + this.interval * min_len;
 
-            switch (this.$props.gap_collapse) {
-                case 1:
-                    Object.assign(this.range, {
-                        delta: end - start,
-                    });
-                    break;
-                case 2:
-                    // TODO: should we define something like a reminder, if our target doesn't exactly provide us w/ a candle? but should later still go toward a 'movement'?
-                    Object.assign(this.range, {
-                        //start,  // TODO: do we want/need to pass&store this? 'delta' prop should cover this no?
-                        //end,
-                        delta: end - start,
-                    })
-                    break;
-                default:
-                    throw new Error(`unsupported gap_collapse option ${this.$props.gap_collapse}`)
-            }
+            Object.assign(this.range, {
+                delta: end - start,
+            });
 
             return end;
         },
