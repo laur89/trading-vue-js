@@ -218,6 +218,14 @@ export default {
         return {start, end, gaps, delta, data};
     },
 
+    _is_gap(gap_delta, interval, gap_collapse_mode) {
+        if (gap_collapse_mode === 2) {
+            return gap_delta > interval;  // in gap_collapse=2 mode we collapse _all_ gaps
+        } else {
+            return gap_delta > WKD_GAP_DURATION;  // in gap_collapse=1 mode, we explicitly define what duration qualifies as a collapsable gap
+        }
+    },
+
     /**
      * Resolve all existing weekend gaps in given {@code data}
      * and return them.
@@ -232,14 +240,14 @@ export default {
      * @param interval
      * @returns {[gaps]}
      */
-    resolve_gaps(data, interval) {
+    resolve_gaps(data, interval, gap_collapse_mode) {
         const gaps = [];
         let start = data.length !== 0 ? data[data.length-1][0] : -1;
 
         //for (let i = 1; i < data.length; i++) {
         for (let i = data.length-2; i >= 0; i--) {
             const end = data[i][0];
-            if (end - start > WKD_GAP_DURATION) {
+            if (this._is_gap(end - start, interval, gap_collapse_mode)) {
                 gaps.push({
                     start,
                     end,
