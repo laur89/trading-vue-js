@@ -32,17 +32,6 @@ function GridMaker(id, params, master_grid = null) {
         //candles: [],  // list of candle definitions, created in layout.js for master grid
     }
 
-    const lm = layers_meta[id]
-    let y_range_fn = undefined
-
-    if (lm !== null && typeof lm === 'object' && Object.keys(lm).length !== 0) {
-        // Gets last y_range fn()
-        y_range_fn = Object.values(lm)
-            .reverse()
-            .find(x => x.hasOwnProperty('y_range') && typeof x.y_range === 'function')
-        // TODO: what is y_rnage for? to customize the range for our offchart?
-    }
-
     // Calc vertical ($/₿) range
     function calc_$range() {
         // Fixed y-range in non-auto mode
@@ -69,8 +58,17 @@ function GridMaker(id, params, master_grid = null) {
                 hi = Math.max(...arr)
                 lo = Math.min(...arr)
 
-                if (y_range_fn !== undefined) {
-                    [hi, lo] = y_range_fn.y_range(hi, lo)
+                const lm = layers_meta[id]
+                if (typeof lm === 'object' && lm !== null && Object.keys(lm).length !== 0) {
+                    // Gets last y_range fn()
+                    const y_range_fn = Object.values(lm)
+                        .reverse()
+                        .find(x => typeof x.y_range === 'function')
+                    // TODO: what is y_rnage for? to customize the range for our offchart?
+
+                    if (y_range_fn !== undefined) {
+                        [hi, lo] = y_range_fn.y_range(hi, lo)
+                    }
                 }
             }
 
