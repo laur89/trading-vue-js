@@ -12,7 +12,7 @@ let json = {}
 
 for (const file of files) {
 
-    if (file === '.DS_Store') continue
+    if (file.startsWith('.')) continue
 
     let b64 = base64_encode(PATH + file)
     let fn = file.toLowerCase()

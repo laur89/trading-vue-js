@@ -25,7 +25,6 @@
 import TradingVue from '../../src/TradingVue.vue'
 import TfSelector from './Timeframes/TFSelector.vue'
 import Data from '../data/data_tf.json'
-import Utils from '../../src/stuff/utils.js'
 import DataCube from '../../src/helpers/datacube.js'
 
 

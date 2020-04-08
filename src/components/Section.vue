@@ -1,6 +1,13 @@
 <template>
     <!-- Horizontal section: (grid + sidebar) -->
     <div class="trading-vue-section">
+        <d-c-legend
+                v-if="grid_id === 0"
+                ref="dc_legend"
+                :common="common"
+                :display="dc_legend_displayed"
+                @dc-legend-button-click="on_dc_legend_button_click"
+        />
         <chart-legend ref="legend"
             :values="section_values"
             :grid_id="grid_id"
@@ -33,6 +40,7 @@
 
 <script>
 
+import DCLegend from './DCLegend.vue'
 import Grid from './Grid.vue'
 import Sidebar from './Sidebar.vue'
 import ChartLegend from './Legend.vue'
@@ -40,12 +48,13 @@ import Shaders from '../mixins/shaders.js'
 
 export default {
     name: 'GridSection',
-    props: ['common', 'grid_id'],
+    props: ['common', 'grid_id', 'dc_legend_displayed'],
     mixins: [Shaders],
     components: {
         Grid,
         Sidebar,
-        ChartLegend
+        ChartLegend,
+        DCLegend,
     },
     mounted() {
         this.init_shaders(this.$props.common.skin)
@@ -93,7 +102,10 @@ export default {
             // Measures grid heights configuration
             let hs = val.layout.grids.map(x => x.height)
             return hs.reduce((a, b) => a + b, '')
-        }
+        },
+        on_dc_legend_button_click(event) {
+            this.$emit('dc-legend-button-click', event)
+        },
     },
     computed: {
         // Component-specific props subsets:

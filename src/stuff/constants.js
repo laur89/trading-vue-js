@@ -46,7 +46,7 @@ const ChartConfig = {
     CANDLEW: 0.6,    // %/100 of step
     GRIDX: 100,      // px  // TODO: some coeff?
     GRIDY: 47,       // px  // TODO: some coeff?
-    BOTBAR: 28,      // px  // bottom bar height, px
+    BOTBAR: 28,      // // bottom bar height, px
     PANHEIGHT: 22,   // px
     DEFAULT_LEN: 50, // candles
     MINIMUM_LEN: 5,  // candles,
