@@ -621,7 +621,7 @@ export default {
         if (arr.length === 0) {
             return {
                 ...range,
-                data: arr,
+                data: [],
             }
         }
 

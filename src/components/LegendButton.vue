@@ -1,6 +1,7 @@
 <template>
-    <img class="t-vue-lbtn" :src="base64"
+    <img class="t-vue-lbtn"
         :id="uuid"
+        :src="base64"
         @click="onclick">
 </template>
 <script>

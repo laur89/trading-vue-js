@@ -46,7 +46,7 @@ const ChartConfig = {
     GRIDY: 47,      // px  // TODO: some coeff?
     BOTBAR: 28,     // bottom bar height, px
     PANHEIGHT: 22,  // px
-    DEFAULT_LEN: 50,// candles
+    DEFAULT_LEN: 150,// candles
     MINIMUM_LEN: 5, // candles,
     MIN_ZOOM: 25,   // candles
     MAX_ZOOM: 1000, // candles,

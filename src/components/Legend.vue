@@ -75,7 +75,7 @@ export default {
                 if (!(x.type in types)) types[x.type] = 0
                 const id = x.type + `_${types[x.type]++}`
                 return {
-                    v: 'display' in x.settings ? x.settings.display : true,
+                    v: x.settings.hasOwnProperty('display') ? x.settings.display : true,  // only used for 'display' button?
                     name: x.name || id,
                     index: this.json_data.indexOf(x),
                     id: id,

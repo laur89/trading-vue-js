@@ -1,6 +1,13 @@
 <template>
     <!-- Horizontal section: (grid + sidebar) -->
     <div class="trading-vue-section">
+        <d-c-legend
+                v-if="grid_id === 0"
+                ref="dc_legend"
+                :common="common"
+                :display="dc_legend_displayed"
+                @dc-legend-button-click="on_dc_legend_button_click"
+        />
         <chart-legend
             :values="section_values"
             :grid_id="grid_id"
@@ -32,6 +39,7 @@
 
 <script>
 
+import DCLegend from './DCLegend.vue'
 import Grid from './Grid.vue'
 import Sidebar from './Sidebar.vue'
 import ChartLegend from './Legend.vue'
@@ -42,10 +50,11 @@ export default {
     components: {
         Grid,
         Sidebar,
-        ChartLegend
+        ChartLegend,
+        DCLegend,
     },
     mixins: [Shaders],
-    props: ['common', 'grid_id'],
+    props: ['common', 'grid_id', 'dc_legend_displayed'],
     methods: {
         movement_changed(m) {
             this.$emit('movement', m)
@@ -76,7 +85,10 @@ export default {
         },
         remove_kb(event) {
             this.$emit('remove-kb-listener', event)
-        }
+        },
+        on_dc_legend_button_click(event) {
+            this.$emit('dc-legend-button-click', event)
+        },
     },
     computed: {
         // Component-specific props subsets:
