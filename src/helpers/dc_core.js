@@ -267,10 +267,11 @@ export default class DCCore extends DCEvents {
     }
 
     // TODO: do not goto if scroll-lock is enabled! (different from cursor lock)
+    // TODO: also pass additional meta-flag indicating when feed has finished, so we know to unsub()?
     received_live_data = data => {
 
         let d = this.data.chart.data
-        const oldTail = d.length === 0 ? -1 : d[d.length-1][0]  // TODO extract into getTail() or something
+        const oldTail = d.length === 0 ? -1 : d[d.length-1][0]  // TODO extract into getTail() or something; note tv's chart.vue keeps track of last cnadle as well
         //const trunc = i => Math.ceil(i/this.dynamicData.timeframe) * this.dynamicData.timeframe
 
         if (Array.isArray(data)) {
@@ -284,7 +285,7 @@ export default class DCCore extends DCEvents {
         }
 
         d = this.data.chart.data
-        if (!this.dynamicData.cursorLock && d.length !== 0 && this.dynamicData.rangeToQuery.end >= oldTail) {
+        if (!this.dynamicData.cursorLock && d.length !== 0 && this.dynamicData.rangeToQuery.end >= oldTail) {  // TODO: perhaps (oldTail - couple_of_candles) to allow sliiight scrollback w/o losing goto()?
             this.tv.goto(d[d.length-1][0])
         } else {
             this.unsubIfNeeded(this.dynamicData.rangeToQuery.end, d.length === 0 ? -1 : d[d.length-1][0])
