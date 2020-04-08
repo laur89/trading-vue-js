@@ -61,7 +61,7 @@ class CursorUpdater {
 
     // Nearest datapoints
     cursor_data(grid, e) {
-        const data = this.comp.main_section.sub
+        const data = this.comp.main_section.sub  // TODO: any reason why we don't access directly this.comp.sub?
 
         let xs;
         switch (this.comp.$props.gap_collapse) {

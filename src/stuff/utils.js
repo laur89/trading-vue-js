@@ -386,8 +386,6 @@ export default {
     },
 
     fast_f_for_range2(arr, range, movement, interval) {
-        //console.log(`  ->  Zstart: ${JSON.stringify(range)}`);
-
         const ia = new IndexedArray(arr, '0');
         ia.fetch(range.end - range.end_remainder);  // move cursor to current, pre-move end
         if (ia.cursor === null) throw new Error(`no datapoint found for current/previous endpoint @ [${range.end - range.end_remainder}]`);
@@ -401,18 +399,15 @@ export default {
         else if (end_idx > arr.length-1) {
             candle_count_delta -= (end_idx - (arr.length - 1));
             end_idx = arr.length-1;
-            //if (end_movement > range.delta - 10 * interval) {
-            //    end_movement -= 300
-            //}
         }
 
         const end_remainder = end_movement - candle_count_delta * interval;
 
         const delta = range.delta + movement[1] - movement[0];
-        const start_idx_minus_one = end_idx - Math.floor(delta / interval);  // end_idx - number_of_visible_candles
+        const start_idx_minus_one = end_idx - Math.floor(delta / interval);  // ie end_idx - number_of_visible_candles
 
         const data = [];
-        for (let i = end_idx; i >= 0 && i > start_idx_minus_one; i--) {
+        for (let i = end_idx; i > start_idx_minus_one && i >= 0; i--) {
             data.push(arr[i]);
         }
 
