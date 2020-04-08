@@ -5,6 +5,7 @@
         <grid-section v-for="(grid, i) in this._layout.grids"
                       :key="grid.id"
                       :common="section_props(i)"
+                      :dc_legend_displayed="dc_legend_displayed"
                       :grid_id="i"
                       @register-kb-listener="register_kb"
                       @remove-kb-listener="remove_kb"
@@ -15,6 +16,7 @@
                       @layer-meta-props="layer_meta_props"
                       @custom-event="emit_custom_event"
                       @legend-button-click="legend_button_click"
+                      @dc-legend-button-click="on_dc_legend_button_click"
         >
         </grid-section>
         <botbar v-bind="botbar_props" :shaders="shaders">
@@ -38,12 +40,12 @@ export default {
     components: {
         GridSection,
         Botbar,
-        Keyboard
+        Keyboard,
     },
     mixins: [Shaders],
     props: [
         'title_txt', 'data', 'width', 'height', 'font', 'colors',
-        'overlays', 'tv_id', 'config', 'buttons', 'toolbar', 'gap_collapse'
+        'overlays', 'tv_id', 'config', 'buttons', 'toolbar', 'gap_collapse',
     ],
     created() {
 
@@ -334,7 +336,10 @@ export default {
             // TODO: add last values for all overlays
             const d = this.ohlcv
             this.last_candle = d ? d[d.length - 1] : []
-        }
+        },
+        on_dc_legend_button_click(event) {
+            this.$emit('dc-legend-button-click', event)
+        },
     },
     computed: {
         // Component-specific props subsets:
@@ -390,7 +395,7 @@ export default {
             return {
                 last: this.last_candle
             }
-        }
+        },
     },
     data() {
         return {
@@ -433,7 +438,9 @@ export default {
             // Default overlay settings
             settings_ov: {},
 
-            last_candle: []
+            last_candle: [],
+
+            dc_legend_displayed: false,  // whether DC legend should be shown
         }
     },
     watch: {

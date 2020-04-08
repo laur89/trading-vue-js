@@ -194,13 +194,17 @@ export default {
             } else {
                 return data
             }
-        }
+        },
     },
     data() {
         return { reset: 0 }
     },
     beforeDestroy() {
         this.on_custom_event({ event: 'before-destroy' })
+
+        this.$refs.chart.$off('cursor-locked');
+        this.$refs.chart.$off('range-changed');
+        this.$refs.chart.$off('scroll-lock');
     },
     methods: {
         resetChart(resetRange = true) {
@@ -237,7 +241,7 @@ export default {
             }
 
             const data = this.$props.data
-            if (data.tv) {
+            if (data.hasOwnProperty('tv')) {
                 // If the data object is DataCube
                 data.on_custom_event(d.event, d.args)
             }
@@ -265,7 +269,7 @@ export default {
 
             // TODO: we'll need scroll-lock emit as well!
             //this.$refs.chart.$on('scroll-lock', v => window.console.log(`>>> scroll-lock ev with value: ${v}`))
-        }
+        },
     }
 }
 </script>
