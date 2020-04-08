@@ -17,6 +17,7 @@ export default class DataCube extends DCCore {
             loadForRange: null,  // can be either null or function
             sub: null,  // can be either null or function
             unsub: null,  // can be either null or function
+            initData: null,  // pull the very last available data; TODO: rename to fetchTail
 
             rangeToQuery: {},
             timeframe: 0,  // millisec
@@ -231,7 +232,7 @@ export default class DataCube extends DCCore {
 
     // Show indicator
     show(query) {
-        if (query === 'offchart' || query === 'onchart') {
+        if (this.on_or_off_chart(query)) {
             query += '.'
         } else if (query === '.') {
             query = ''
@@ -242,7 +243,7 @@ export default class DataCube extends DCCore {
 
     // Hide indicator
     hide(query) {
-        if (query === 'offchart' || query === 'onchart') {
+        if (this.on_or_off_chart(query)) {
             query += '.'
         } else if (query === '.') {
             query = ''
@@ -276,8 +277,8 @@ export default class DataCube extends DCCore {
      * @param unsubscribe
      */
     setDataHandlers({
-                        loadForRange,
-                        initData,
+                        loadForRange,  // needs to return either Promise, or null when using the callback way
+                        initData,  // needs to return Promise!
                         onRangeChanged = this.range_changed,
                         onCursorLockChanged = this.onCursorLockChanged,
                         onLiveData = this.received_live_data,
@@ -292,12 +293,28 @@ export default class DataCube extends DCCore {
         // allow vue to init, register listeners at next tick: (use setTimeout if not pulling data here)
         initData = Utils.get_fun_or_null(initData)
         if (initData !== null) {
+            this.dynamicData.initData = initData;
+
             initData().then(data => {
                 this.tv.register_range_changed_listener(Utils.get_fun_or_null(onRangeChanged))
                 this.tv.register_cursor_lock_listener(Utils.get_fun_or_null(onCursorLockChanged))
 
-                this.chunk_loaded(data, 0)
+                this.chunk_loaded(data, 1)
             })
         }
+
+        this.tv.$refs.chart.$on('dc-legend-button-click', e => {
+
+            if (this.dynamicData.isHead || this.dynamicData.isEnd) {  // we're currently already subbed OR we already have end of chart
+                this.goto_current_tail();
+            } else if (this.dynamicData.initData !== null) {
+                this.dynamicData.initData().then(data => {
+                    this.chunk_loaded(data, 1);
+                    this.goto_current_tail();
+                });
+            }
+
+            this.tv.$refs.chart.dc_legend_displayed = false;  // hide dc buttons
+        });
     }
 }

@@ -134,8 +134,13 @@ export default class DCCore extends DCEvents {
         }
 
         if (this.dynamicData.isHead && !this.unsubIfNeeded(range.end, tail)) {
+            // we didn't subscribe, bail here - no reason to continue w/ range_changed logic
             this.dynamicData.loading = false
             return
+        } else if (!this.tv.$refs.chart.dc_legend_displayed && range.end < tail - this.dynamicData.timeframe * 100) {  // TODO this check same as in unsubIfNeeded()!
+            this.tv.$refs.chart.dc_legend_displayed = true;
+        } else if (this.tv.$refs.chart.dc_legend_displayed && range.end >= tail) {
+            this.tv.$refs.chart.dc_legend_displayed = false;
         }
 
         const fetchLookAheadMs = this.dynamicData.fetchLookAhead * this.dynamicData.timeframe
@@ -156,15 +161,15 @@ export default class DCCore extends DCEvents {
         }
     }
 
+    // see if we should un-subscribe from live data if we've 'snapped' back far enough from tail:
     unsubIfNeeded = (rangeTail, tail) => {
-        // see if we should un-subscribe from live data if we've 'snapped' back far enough from tail:
         if (this.dynamicData.unsub !== null && rangeTail < tail - this.dynamicData.timeframe * 100) {
             this.dynamicData.isHead = false  // we're no longer keeping up-to-date w/ live events
             this.dynamicData.unsub()
             return true
         }
 
-        return false
+        return false  // false, ie we did _not_ unsub
     }
 
     fetchAndProcess = async (range, head, tail) => {
@@ -204,6 +209,17 @@ export default class DCCore extends DCEvents {
         }
     }
 
+    goto_current_tail() {
+        const d = this.data.chart.data;
+        if (d.length === 0) return;
+
+        //this.tv.goto(d[d.length - 1][0]);
+        this.tv.goto({
+            e: d[d.length - 1][0],
+            c: 2.5,  // leave bit more empty buffer space to the right
+        });
+    }
+
     // A new chunk of data is loaded
     chunk_loaded = (data, fetchDirection, latch = null) => {
         try {
@@ -227,18 +243,18 @@ export default class DCCore extends DCEvents {
                             this.dynamicData.rangeToQuery.end >= tail - this.dynamicData.timeframe * 100)) {
                         delete this.dynamicData.isTail
 
-                        // TODO: possibly need invoking via setTimeout/$nextTick only with isTail (ie during init), as chart range hasn't been init'd yet
+                        // TODO: possibly need invoking via setTimeout/$nextTick only with isTail (ie during very first init), as chart range hasn't been init'd yet
                         this.tv.$nextTick(() => {
                             this.tv.goto(tail)
                             this.dynamicData.sub(tail);  // call sub w/ the latest timestamp we have
                         })
                     } else {
-                        this.dynamicData.isHead = false  // reset the just-assigned 'true' value, as we're not subscribed for live data
+                        this.dynamicData.isHead = false  // reset the just-assigned 'true' value, as we didn't end up subbing for live data
                     }
                 }
             }
         } finally {
-            if (!(latch !== null && !latch.check())) {
+            if (latch === null || latch.check()) {
                 this.truncate_data(fetchDirection)  // truncate before releasing 'loading' lock!
                 this.dynamicData.loading = false
             }
@@ -316,7 +332,9 @@ export default class DCCore extends DCEvents {
         if (!this.dynamicData.cursorLock && d.length !== 0 && this.dynamicData.rangeToQuery.end >= oldTail) {  // TODO: perhaps (oldTail - couple_of_candles) to allow sliiight scrollback w/o losing goto()?
             this.tv.goto(d[d.length-1][0])
         } else {
-            this.unsubIfNeeded(this.dynamicData.rangeToQuery.end, d.length === 0 ? -1 : d[d.length-1][0])
+            if (this.unsubIfNeeded(this.dynamicData.rangeToQuery.end, d.length === 0 ? -1 : d[d.length-1][0])) {
+                this.tv.$refs.chart.dc_legend_displayed = true;
+            }
         }
 
         this.truncate_data(1)
@@ -545,7 +563,7 @@ export default class DCCore extends DCEvents {
     }
 
     _merge_customizer = (objValue, srcValue, key) => {
-        if (Array.isArray(objValue) && objValue[0] && objValue[0].length >= 2 && isFinite(objValue[0][0])) {
+        if (Array.isArray(objValue) && Array.isArray(objValue[0]) && objValue[0].length >= 2 && isFinite(objValue[0][0])) {
             return this.merge_ts(objValue, srcValue)
         } else if (this.on_or_off_chart(key)) {
         // TODO: depends now whether srcVal is arr or obj right?

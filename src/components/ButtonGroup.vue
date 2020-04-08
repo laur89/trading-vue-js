@@ -1,8 +1,9 @@
 <template>
 <span class="t-vue-lbtn-grp">
     <legend-button
-        v-for="(b, i) in buttons" :key="i"
+        v-for="(b, i) in buttons"
         :id="b.name || b"
+        :key="i"
         :tv_id="tv_id"
         :ov_id="ov_id"
         :grid_id="grid_id"

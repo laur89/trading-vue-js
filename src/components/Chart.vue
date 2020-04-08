@@ -5,6 +5,7 @@
         <grid-section v-for="(grid, i) in this._layout.grids"
             :key="grid.id" ref="sec"
             :common="section_props(i)"
+            :dc_legend_displayed="dc_legend_displayed"
             :grid_id="i"
             @register-kb-listener="register_kb"
             @remove-kb-listener="remove_kb"
@@ -16,6 +17,7 @@
             @custom-event="emit_custom_event"
             @legend-button-click="legend_button_click"
             @movement="movement_changed"
+            @dc-legend-button-click="on_dc_legend_button_click"
             >
         </grid-section>
         <botbar v-bind="botbar_props"
@@ -50,7 +52,7 @@ export default {
     components: {
         GridSection,
         Botbar,
-        Keyboard
+        Keyboard,
     },
     created() {
 
@@ -406,7 +408,10 @@ export default {
         // Set hooks list (called from an extension)
         hooks(...list) {
             list.forEach(x => this[`_hook_${x}`] = true)
-        }
+        },
+        on_dc_legend_button_click(event) {
+            this.$emit('dc-legend-button-click', event)
+        },
     },
     computed: {
         // Component-specific props subsets:
@@ -520,7 +525,8 @@ export default {
             last_candle: [],
             last_values: {},
             sub_start: undefined,
-            activated: false
+            activated: false,
+            dc_legend_displayed: false,  // whether DC legend should be shown
 
         }
     },

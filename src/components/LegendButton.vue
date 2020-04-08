@@ -1,10 +1,11 @@
 <template>
-    <img class="t-vue-lbtn" :src="base64"
+    <img class="t-vue-lbtn"
         :id="uuid" :style="{
             width: config.L_BTN_SIZE + 'px',
             height: config.L_BTN_SIZE + 'px',
             margin: config.L_BTN_MARGIN
         }"
+        :src="base64"
         @click="onclick">
 </template>
 <script>
