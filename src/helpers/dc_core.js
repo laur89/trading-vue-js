@@ -261,6 +261,12 @@ export default class DCCore extends DCEvents {
         }
     }
 
+    _clear_data = () => {
+        this.data.chart.data = [];
+        this.data.onchart = [];
+        this.data.offchart = [];
+    }
+
     _trunc = (data, fetchDirection) => {
         const unsubIfNeeded = () => {
             if (this.dynamicData.isHead) {
@@ -565,7 +571,7 @@ export default class DCCore extends DCEvents {
     _merge_customizer = (objValue, srcValue, key) => {
         if (Array.isArray(objValue) && Array.isArray(objValue[0]) && objValue[0].length >= 2 && isFinite(objValue[0][0])) {
             return this.merge_ts(objValue, srcValue)
-        } else if (this.on_or_off_chart(key)) {
+        } else if (this.on_or_off_chart(key)) {  // TODO: deprecate this check? think it's dead code
         // TODO: depends now whether srcVal is arr or obj right?
         }
     }
