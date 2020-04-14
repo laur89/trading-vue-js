@@ -119,14 +119,14 @@ export default class DataCube extends DCCore {
         const overlays_to_add = []
 
         for (const d of data) {
-            const obj = objects.find(o => o.v.name === d.name)
+            const existing_onoff_overlay = objects.find(o => o.v.name === d.name)
 
-            if (obj === undefined) {
+            if (existing_onoff_overlay === undefined) {
                 // couldn't find existing overlay with same name;
                 // assuming it's new one that needs to be added;
                 overlays_to_add.push(d)
             } else {
-                this.merge_objects(obj, d)
+                this.merge_objects(existing_onoff_overlay, d)
             }
         }
 
@@ -316,17 +316,17 @@ export default class DataCube extends DCCore {
 
                 // if some loading process going on, wait 'til it's done:
                 while (this.dynamicData.loading) {
-                    await Utils.pause(50)
+                    await Utils.pause(50);
                 }
 
                 this.dynamicData.loading = true;  // acquire lock
                 this.dynamicData.initData(Math.ceil(this.dynamicData.rangeToQuery.delta * 1.5)).then(data => {
-                    this._clear_data();  // otherwise we're likely to get a gap between our current tail & head of getTail() call response, that could be interpreted as a gap!
+                    this._clear_data();  // otherwise we're likely to get a gap between our current tail & head of getTail() call response, that could be interpreted as a wkd-gap!
                     this.chunk_loaded(data, 1);
                     this.goto_current_tail();
                 }).finally(() => {
                     this.dynamicData.jumpToHeadPending = false;
-                    this.dynamicData.loading = false;  // redundant, but no harm in keeping
+                    //this.dynamicData.loading = false;  // redundant, but no harm in keeping
                 });
             }
 
