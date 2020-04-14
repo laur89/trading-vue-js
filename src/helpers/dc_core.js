@@ -367,9 +367,7 @@ export default class DCCore extends DCEvents {
         }
     }
 
-    on_or_off_chart(side) {
-        return side === 'onchart' || side === 'offchart'
-    }
+    on_or_off_chart = side => side === 'onchart' || side === 'offchart';
 
     // Returns array of objects matching query.
     // Object contains { parent, index, value }
