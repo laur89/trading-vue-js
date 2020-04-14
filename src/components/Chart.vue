@@ -72,6 +72,7 @@ export default {
             // Quick fix for IB mode (switch 2 next lines)
             // TODO: wtf?
             Object.assign(this.range, r)
+            //this.range = r;  //  TODO can we use?
 
             this.update_layout()
             this.$emit('range-changed', r)
@@ -137,6 +138,7 @@ export default {
             this.$set(this.y_transforms, s.grid_id, obj)
             this.update_layout()
             Object.assign(this.range, this.range)  // TODO: is this really needed?
+            //this.range = Object.assign({}, this.range);   //  TODO can we use?
         },
 
         /**
@@ -488,6 +490,7 @@ export default {
         },
         colors() {
             Object.assign(this.range, this.range)  // TODO: is this really necessary?
+            //this.range = Object.assign({}, this.range);  //  TODO can we use?
         },
         data: {
             handler: function(n, p) {
@@ -495,8 +498,10 @@ export default {
                 this.init_secondary_series_tf();
 
                 // TODO: find a better solution thatn ohlcv.slice().reverse()!:
-                Utils.overwrite(this.gaps, Utils.resolve_gaps(this.ohlcv.slice(0).reverse(), this.interval, this.$props.gap_collapse))
-                this.subset(endTimestamp)  // TODO: only call subset() here if endTimestamp !== undefined, ie we're doing our first init?
+                if (this.$props.gap_collapse === 1) {
+                    Utils.overwrite(this.gaps, Utils.resolve_gaps(this.ohlcv.slice(0).reverse(), this.interval, this.$props.gap_collapse))
+                }
+                if (endTimestamp !== undefined) this.subset(endTimestamp)  // only call subset() if endTimestamp !== undefined, ie it's our first init
 
                 // TODO: data changed detection not working?:
                 //window.console.log(`d changed?: ${Utils.data_changed(n, p)}`)
