@@ -21,6 +21,8 @@ export default class DataCube extends DCCore {
 
             loading: true,  // whether we're currently in process of fetching data for a range; TODO: rename as 'fetching'
             // note loading is initialized as 'true', as we want to wait 'til first batch of data is fetched;
+            jumpToHeadPending: false,  // whether we're currently processing jump-to-head clickhandler;
+
 
             cursorLock: false,
             scrollLock: false,  // TODO: unused atm
@@ -251,14 +253,28 @@ export default class DataCube extends DCCore {
             })
         }
 
-        this.tv.$refs.chart.$on('dc-legend-button-click', e => {
+        this.tv.$refs.chart.$on('dc-legend-button-click', async e => {
 
-            if (this.dynamicData.isHead || this.dynamicData.isEnd) {  // we're currently already subbed OR we already have end of chart
+            if (this.dynamicData.jumpToHeadPending) {
+                return;  // another call to clickhander pending, bail
+            } else if (this.dynamicData.isHead || this.dynamicData.isEnd) {  // we're currently already subbed OR we already have end of chart
                 this.goto_current_tail();
             } else if (this.dynamicData.initData !== null) {
-                this.dynamicData.initData().then(data => {
+                this.dynamicData.jumpToHeadPending = true;
+
+                // if some loading process going on, wait 'til it's done:
+                while (this.dynamicData.loading) {
+                    await Utils.pause(50)
+                }
+
+                this.dynamicData.loading = true;  // acquire lock
+                this.dynamicData.initData(Math.ceil(this.dynamicData.rangeToQuery.delta * 1.5)).then(data => {
+                    this._clear_data();  // otherwise we're likely to get a gap between our current tail & head of getTail() call response, that could be interpreted as a gap!
                     this.chunk_loaded(data, 1);
                     this.goto_current_tail();
+                }).finally(() => {
+                    this.dynamicData.jumpToHeadPending = false;
+                    this.dynamicData.loading = false;  // redundant, but no harm in keeping
                 });
             }
 
