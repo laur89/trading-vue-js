@@ -413,19 +413,23 @@ function GridMaker(id, params, master_grid = null) {
     // Search a start for the top grid so that
     // the fixed value always included
     function search_start_pos(value) {
-        var y = Infinity, y$ = value
+        let N = height / $p.config.GRIDY // target grid N
+        var y = Infinity, y$ = value, count = 0
         while (y > 0) {
             y = Math.floor(math.log(y$) * self.A + self.B)
             y$ *= self.$_mult
+            if (count++ > N * 3) return 0 // Prevents deadloops
         }
         return y$
     }
 
     function search_start_neg(value) {
-        var y = -Infinity, y$ = value
+        let N = height / $p.config.GRIDY // target grid N
+        var y = -Infinity, y$ = value, count = 0
         while (y < height) {
             y = Math.floor(math.log(y$) * self.A + self.B)
             y$ *= self.$_mult
+            if (count++ > N * 3) break // Prevents deadloops
         }
         return y$
     }
@@ -461,6 +465,7 @@ function GridMaker(id, params, master_grid = null) {
         //self.height = height  // note this was also commented out, now assigning height prop above where self is declared
     }
 
+    calc_$range()
     calc_sidebar()
 
     return {
@@ -468,7 +473,6 @@ function GridMaker(id, params, master_grid = null) {
         // (among all grids). Then we can actually make
         // them
         create: () => {
-            calc_$range()
             calc_positions()
             grid_x()
             if (grid.logScale) {
