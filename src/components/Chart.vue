@@ -286,7 +286,8 @@ export default {
                         this.range,
                         //movement.start - this.interval,
                         //movement.end
-                        movement
+                        movement,
+                        this.interval
                     );
 
                     if (Array.isArray(data) && data.length !== 0) {
