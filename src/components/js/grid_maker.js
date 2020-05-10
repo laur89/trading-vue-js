@@ -131,7 +131,8 @@ function GridMaker(id, params, master_grid = null) {
         // from it:
 
         // TODO: add custom formatter f()
-
+        lens.push(self.$_hi.toFixed(self.prec).length)
+        lens.push(self.$_lo.toFixed(self.prec).length)
         self.prec = calc_precision(sub)
         let lens = []
         lens.push(self.$_hi.toFixed(self.prec).length)
