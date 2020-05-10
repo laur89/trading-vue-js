@@ -3,7 +3,7 @@
         ref="tvjs"
         :chart-config="{DEFAULT_LEN: 200}"
         :toolbar="true"
-        :gap_collapse="2"
+        :gap_collapse="3"
         :color-back="colors.colorBack"
         :color-grid="colors.colorGrid"
         :color-text="colors.colorText"

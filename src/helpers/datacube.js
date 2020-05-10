@@ -174,8 +174,7 @@ export default class DataCube extends DCCore {
         const tick = data['price']
         const volume = data['volume'] || 0
         const candle = data['candle']
-        const tfx = Utils.parse_tf(this.data.chart.tf)
-        const tf = tfx || Utils.detect_interval(ohlcv)
+        const tf = Utils.parse_tf(this.data.chart.tf) || Utils.detect_interval(ohlcv)
         const t_next = last[0] + tf
         const now = Utils.now()
         let t = now >= t_next ? (now - now % tf) : last[0]

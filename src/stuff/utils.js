@@ -184,9 +184,34 @@ export default {
 
     // Nearest indexes (left and right)
     fast_nearest(arr, t1) {
-        let ia = new IndexedArray(arr, "0")
+        const ia = new IndexedArray(arr, '0')
         ia.fetch(t1)
         return [ia.nextlow, ia.nexthigh]
+    },
+
+
+    // Fast filter (index-based)
+    fast_filter_i2(arr, range, movement) {
+        if (arr.length === 0) {
+            return {
+                ...range,
+                data: [],
+            }
+        }
+
+        let i1, i2;
+        if (Array.isArray(movement)) {
+            [i1, i2] = movement;
+            i1 = Math.floor(i1);
+            if (i1 < 0) i1 = 0;
+            i2 = Math.floor(i2 + 1);
+        } else {  // typeof movement == number|object // TODO: object usage not allowed, not yet anyway!
+            i2 = movement + 1;  // TODO: always add 1?
+            i1 = i2 - range.delta;
+            if (i1 < 0) i1 = 0;
+        }
+
+        return {start: i1, end: i2, delta: i2-i1, data: arr.slice(i1, i2)};
     },
 
 

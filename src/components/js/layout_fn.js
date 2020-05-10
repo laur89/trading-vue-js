@@ -5,20 +5,18 @@ import math from '../../stuff/math.js'
 
 export default function(self, range) {
 
-    const ib = self.ti_map.ib
+    const ib = self.gap_collapse === 3;
     const dt = range.end - range.start
     const r = self.spacex / dt
-    const ls = self.grid.logScale || false
+    const ls = !!self.grid.logScale
 
     Object.assign(self, {
         // Time to screen coordinates
         t2screen: t => {
             if (ib) t = self.ti_map.smth2i(t)
-            return Math.floor((t - range.start) * r) - 0.5
+            return Utils.t2screen(t, range, self.spacex) - 0.5  // TODO: why -0.5?
+// TODO: upstream has this for above line:  return Math.floor((t - range.start) * r) - 0.5
         },
-//        t2screen: t => {
-//            return Utils.t2screen(t, range, self.spacex) - 0.5  // TODO: why -0.5?
-//        },
         // $ to screen coordinates
         $2screen: y => {
             if (ls) y = math.log(y)
@@ -40,7 +38,9 @@ export default function(self, range) {
         },
         // Screen-X to timestamp
         screen2t: x => {
-            let t = Math.floor(range.start + x / r)
+            // TODO: most likely Math.floor not needed
+            //let t = Math.floor(range.start + x / r)
+            let t = range.start + x / r
 
             if (range.gaps !== null) {
                 for (const gap of range.gaps) {
