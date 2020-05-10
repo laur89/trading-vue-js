@@ -187,7 +187,7 @@ export default {
             }
         },
         emit_ux_event(e) {
-            let e_pass = this.on_ux_event(e, 'grid')
+            const e_pass = this.on_ux_event(e, 'grid')
             if (e_pass) this.$emit('custom-event', e)
         },
         // Replace the current comp with 'renderer'

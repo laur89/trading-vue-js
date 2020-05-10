@@ -62,7 +62,7 @@ export default {
         // Initial layout (All measurements for the chart)
         this.sub = this.subset(this.init_range())
         this.init_secondary_series_tf();
-        Utils.overwrite(this.range, this.range) // Fix for IB mode
+        //Utils.overwrite(this.range, this.range) // Fix for IB mode
         this._layout = new Layout(this)
 
         // Updates current cursor values
@@ -116,8 +116,9 @@ export default {
         calc_interval() {
             let tf = Utils.parse_tf(this.forced_tf)
             if (this.ohlcv.length < 2 && !tf) return
-            this.interval_ms = tf || Utils.detect_interval(this.ohlcv)
-            this.interval = this.$props.ib ? 1 : this.interval_ms
+            this.interval_ms = tf || Utils.parse_tf(this.chart.tf) || Utils.detect_interval(this.ohlcv)
+            this.interval = this.$props.ib || this.$props.gap_collapse === 3 ? 1 : this.interval_ms
+
             Utils.warn(
                 () => this.$props.ib && !this.chart.tf,
                 Const.IB_TF_WARN, Const.SECOND
@@ -132,8 +133,10 @@ export default {
          */
         init_secondary_series_tf() {
             const define_tf = d => {
-                if (!d.hasOwnProperty('tf') && d.data.length >= 2) {
-                    d.tf = Utils.detect_interval(d.data)
+                if (d.hasOwnProperty('tf')) {
+                    d.tf = Utils.parse_tf(d.tf)
+                } else if (d.data.length >= 2) {
+                    d.tf = Utils.detect_interval(d.data);
                 }
             };
 
@@ -176,11 +179,10 @@ export default {
                 d = 0.5
             }
 
-// TODO: upstream has if-else here: if (!this.$props.ib) {
             const start = data[start_idx][0] - this.interval * d;  // note the last subtraction is to fit the leftmost candle nicely/as a whole on our view
             const end = data[last_idx][0]  // + this.interval * min_len; <-- right-hand buffer set... elsewhere?
 
-            Object.assign(this.range, {
+            Object.assign(this.range, {  // TODO: wrong in IB mode! gap_collapse=3; but it should get overwritten anyway, so doesn't matter?
                 delta: end - start,
             });
 
@@ -190,6 +192,12 @@ export default {
                         e: end,
                         c: 2.5,  // leave bit more empty buffer space to the right
                     };
+                case 3: {
+                    const start = start_idx - this.interval * d
+                    const end = last_idx + this.interval * min_len
+
+                    return [start, end];
+                }
                 default:
                     return end;
             }
@@ -201,7 +209,7 @@ export default {
          * that fit within our new range, and calls {@code range_changed()} function
          * with redefined range parameters.
          *
-         * @param {number|array<number>} movement  either a number stating the timestamp where our end (ie
+         * @param {number|array<number>|object} movement  either a number stating the timestamp where our end (ie
          *                               right-hand side) should be placed, or array of two elements:
          *                               [start-delta-in-ms, end-delta-in-ms], ie array defining how much
          *                               and in which direction our start & end points should be shifted.
@@ -272,6 +280,38 @@ export default {
 
                     return data;
                 }
+                case 3: {  // == IB mode, ie index-based mode
+                    let { start, end, delta, data } = Utils.fast_filter_i2(
+                        this.ohlcv,
+                        this.range,
+                        //movement.start - this.interval,
+                        //movement.end
+                        movement
+                    );
+
+                    if (Array.isArray(data) && data.length !== 0) {
+                        this.sub_start = start
+                        this.ti_map = new TI(this, data)
+                        data = this.ti_map.sub_i
+                    } else {
+                        return []
+                    }
+
+                    // ! note no gaps in IB / gap_collapse=3 mode !
+                    const range_changed = this.range.start !== start || this.range.end !== end;
+
+                    if (range_changed || this.sub.length !== data.length) {
+                        Utils.overwrite(this.sub, data)
+                    }
+
+                    if (range_changed) {
+                        this.range_changed({
+                            start, end, delta,
+                        })
+                    }
+
+                    return data;
+                }
                 default:
                     throw new Error(`unsupported gap_collapse option ${this.$props.gap_collapse}`)
             }
@@ -326,21 +366,33 @@ export default {
          * candles for current {@code this.range}
          */
         overlay_subset(source) {
-            return source.map(d => ({
-                type: d.type,
-                name: d.name,
-                data: this.ti_map.parse(Utils.fast_filter(
-                    d.data,
-// TODO: following 2 lines should be these:
-//                    this.range.start - (d.tf || this.interval),
-//                    this.range.end + (d.tf || this.interval)
-                    this.ti_map.i2t(this.range[0] - this.interval),
-                    this.ti_map.i2t(this.range[1])
-                )[0] || []),
-                settings: d.settings || this.settings_ov,
-                grid: d.grid || {},
-                tf: Utils.parse_tf(d.tf)
-            }))
+            return source.map(d => {
+                let data
+                if (this.$props.gap_collapse === 3) {
+                    data = this.ti_map.parse(Utils.fast_filter(
+                        d.data,
+                        //this.ti_map.i2t(this.range.start - this.interval),
+                        //this.ti_map.i2t(this.range.end)
+                        this.ti_map.i2t(this.range.start - (d.tf || this.interval)),
+                        this.ti_map.i2t(this.range.end + (d.tf || this.interval))
+                    ));
+                } else {
+                    data = Utils.fast_filter(
+                        d.data,
+                        this.range.start - (d.tf || this.interval),
+                        this.range.end + (d.tf || this.interval)
+                    );
+                }
+
+                return {
+                    type: d.type,
+                    name: d.name,
+                    data,
+                    settings: d.settings || this.settings_ov,
+                    grid: d.grid || {},
+                    tf: d.tf, // Utils.parse_tf(d.tf)
+                }
+            });
         },
 
         section_props(i) {
@@ -462,10 +514,6 @@ export default {
         offchart() {
             return this.$props.data.offchart || []
         },
-        filter() {
-            return this.$props.ib ?
-                Utils.fast_filter_i : Utils.fast_filter
-        },
         styles() {
             const w = this.$props.toolbar ? this.$props.config.TOOLBAR : 0
             return { 'margin-left': `${w}px` }
@@ -543,18 +591,18 @@ export default {
         ib(nw) {
             if (!nw) {
                 // Change range index => time
-                let t1 = this.ti_map.i2t(this.range[0])
-                let t2 = this.ti_map.i2t(this.range[1])
-                Utils.overwrite(this.range, [t1, t2])
+                this.range.start = this.ti_map.i2t(this.range.start)
+                this.range.end = this.ti_map.i2t(this.range.end)
+                //Utils.overwrite(this.range, [t1, t2])
                 this.interval = this.interval_ms
             } else {
                 this.init_range() // TODO: calc index range instead
-                Utils.overwrite(this.range, this.range)
+                //Utils.overwrite(this.range, this.range)
+                Object.assign(this.range, this.range)  // TODO: is this really necessary?
                 this.interval = 1
             }
-            let sub = this.subset()
-            Utils.overwrite(this.sub, sub)
-            this.update_layout()
+
+            this.subset()  // overwrite this.sub & trigger update_layout() if necessary
         },
         timezone() {
             this.update_layout()

@@ -119,16 +119,18 @@ export function layout_vol(self) {
 
 function new_interval(layout, $p, sub) {
     // Subset interval against main interval
-    if (!layout.ti_map.ib) {
-        var interval2 = $p.tf || Utils.detect_interval(sub)
-        var ratio = interval2 / $p.interval
+    let interval2, ratio
+
+    if ($p.gap_collapse !== 3) {
+        interval2 = $p.tf || Utils.detect_interval(sub)
+        ratio = interval2 / $p.interval
     } else {
         if ($p.tf) {
-            var ratio = $p.tf / layout.ti_map.tf
-            var interval2 = ratio
+            ratio = $p.tf / layout.ti_map.tf
+            interval2 = ratio
         } else {
-            var interval2 = Utils.detect_interval(sub)
-            var ratio = interval2 / $p.interval
+            interval2 = Utils.detect_interval(sub)
+            ratio = interval2 / $p.interval
         }
     }
     return [interval2, ratio]

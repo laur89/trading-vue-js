@@ -71,7 +71,7 @@ export default class Grid {
                     Object.assign({}, tfrm.range) : undefined,
                 B: this.layout.B,
                 t0: Utils.now(),
-                compound: 0,
+                compound: 0,  // compounding tally of our x-axis movement from the position where panstart stared from
             }
             this.comp.$emit('cursor-changed', {
                 grid_id: this.id,
@@ -419,13 +419,13 @@ export default class Grid {
 
     /**
      * Call w/ updated coords
-// TODO: rename drug-drag
      * @param x new!
      * @param y new!
      */
     mousedrag(x, y) {
 
-        if (this.$p.y_transform && !this.$p.y_transform.auto) {
+        const ls = this.layout.grid.logScale
+        let range = null
 
             let d$ = this.layout.$_hi - this.layout.$_lo
             d$ *= (this.drag.y - y) / this.layout.height
@@ -454,9 +454,10 @@ export default class Grid {
             })
         }
 
-        const dt = this.drag.r.delta * (this.drag.x - x) / this.layout.width
-        this.change_range(dt - this.drag.compound, dt - this.drag.compound)
-        this.drag.compound = dt
+        const dt_from_starting_position = this.drag.r.delta * (this.drag.x - x) / this.layout.width
+        const dx = dt_from_starting_position - this.drag.compound
+        this.change_range(dx, dx)
+        this.drag.compound = dt_from_starting_position
     }
 
     pinchzoom(scale) {

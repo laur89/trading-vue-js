@@ -47,19 +47,17 @@ export default class TI {
     // Make maps for the main subset
     map_sub(res) {
 
-        for (var i = 0; i < res.length; i++) {
-            let t = res[i][0]
-            let _i = (this.ss + i)
+        for (let i = 0; i < res.length; i++) {
+            const t = res[i][0]
+            const _i = this.ss + i
             this.ti_map[t] = _i
             this.it_map[_i] = t
 
-            // Overwrite t with i
-            let copy = [...res[i]]
-            copy[0] = _i
-            this.sub_i.push(copy)
-
+            // Overwrite time w/ index; note this has important implications elsewhere in the logic!
+            const candle_copy = [...res[i]]
+            candle_copy[0] = _i
+            this.sub_i.push(candle_copy)
         }
-
     }
 
     // Map overlay data

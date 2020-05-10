@@ -28,7 +28,7 @@ if (typeof window !== 'undefined' && window.Vue) {
     window.TradingVueLib = {
         TradingVue, Overlay, Utils, Constants,
         Candle, Volbar, layout_cnv, layout_vol,
-        DataCube, Tool, Interface, primitives
+        DataCube, Tool, Interface, primitives,
     }
 }
 

@@ -204,8 +204,7 @@ export default {
                 font: this.font_comp,
                 buttons: this.$props.legendButtons,
                 toolbar: this.$props.toolbar,
-                ib: this.$props.indexBased || this.index_based || false,
-                gap_collapse: this.$props.gap_collapse,
+                gap_collapse: this.get_effective_collapse_mode,
                 colors: Object.assign({}, this.$props.colors ||
                     this.colorpack),
                 skin: this.skin_proto,
@@ -232,15 +231,14 @@ export default {
                 return data
             }
         },
-        index_based() {
+        get_effective_collapse_mode() {
             const base = this.$props.data
-            if (base.chart) {
-                return base.chart.indexBased
+            // TODO: remove this indexBased nonsense & only use gap_collapse?
+            if (this.$props.indexBased || (base.chart && base.chart.indexBased) || (base.data && base.data.chart.indexBased)) {
+                return 3;
             }
-            else if (base.data) {
-                return base.data.chart.indexBased
-            }
-            return false
+
+            return this.$props.gap_collapse
         },
         mod_ovs() {
             let arr = []
@@ -280,7 +278,7 @@ export default {
         },
         goto(t) {
             // TODO: limit goto & setRange (out of data error)
-            if (this.chart_props.ib) {
+            if (this.chart_props.gap_collapse === 3) {
                 const ti_map = this.$refs.chart.ti_map
                 t = ti_map.gt2i(t, this.$refs.chart.ohlcv)
             }
@@ -290,7 +288,7 @@ export default {
             this.$refs.chart.goto([t, t])
         },
         setRange(t1, t2) {
-            if (this.chart_props.ib) {
+            if (this.chart_props.gap_collapse === 3) {
                 const ti_map = this.$refs.chart.ti_map
                 const ohlcv = this.$refs.chart.ohlcv
                 t1 = ti_map.gt2i(t1, ohlcv)
@@ -299,7 +297,7 @@ export default {
             this.$refs.chart.setRange(t1, t2)
         },
         getRange() {
-            if (this.chart_props.ib) {
+            if (this.chart_props.gap_collapse === 3) {
                 const ti_map = this.$refs.chart.ti_map
                 // Time range => index range
                 return this.$refs.chart.range
@@ -310,7 +308,9 @@ export default {
         getCursor() {
 
             let cursor = this.$refs.chart.cursor
-            if (this.chart_props.ib) {
+            if (this.chart_props.gap_collapse === 3) {
+            // TODO: upstream had this if:
+            //if (this.chart_props.ib) {
                 const ti_map = this.$refs.chart.ti_map
                 let copy = Object.assign({}, cursor)
                 copy.i = copy.t

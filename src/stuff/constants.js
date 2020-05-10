@@ -16,7 +16,7 @@ const YEAR = DAY * 365
 const MONTHMAP = [
     "Jan", "Feb", "Mar", "Apr",
     "May", "Jun","Jul", "Aug",
-    "Sep", "Oct","Nov", "Dec"
+    "Sep", "Oct","Nov", "Dec",
 ]
 
 // Grid time steps
@@ -25,7 +25,7 @@ const TIMESCALES = [
     MONTH * 6, MONTH * 4, MONTH * 3, MONTH * 2, MONTH,
     DAY * 15, DAY * 10, DAY * 7, DAY * 5, DAY * 3, DAY * 2, DAY,
     HOUR * 12, HOUR * 6, HOUR * 3, HOUR * 1.5, HOUR,
-    MINUTE30, MINUTE15, MINUTE * 10, MINUTE5, MINUTE * 2, MINUTE
+    MINUTE30, MINUTE15, MINUTE * 10, MINUTE5, MINUTE * 2, MINUTE,
 ]
 
 // Grid $ steps
@@ -90,7 +90,7 @@ const MAP_UNIT = {
   "1D": DAY,
   "1W": WEEK,
   "1M": MONTH,
-  "1Y": YEAR
+  "1Y": YEAR,
 }
 
 export default {

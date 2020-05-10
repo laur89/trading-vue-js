@@ -37,6 +37,7 @@ function GridMaker(id, params, master_grid = null) {
         $_lo: -1,  // min vertical range w/ the buffer, ie absolute
         //volume: []  // list of volbar definitions, created in layout.js for master grid
         //candles: [],  // list of candle definitions, created in layout.js for master grid
+        gap_collapse: $p.gap_collapse,
     }
 
     const lm = layers_meta[id]
@@ -239,7 +240,7 @@ function GridMaker(id, params, master_grid = null) {
 
     // Select nearest good-looking t step (m is target scale)
     function time_step(delta_range) {
-        const k = ti_map.ib ? 60000 : 1
+        const k = $p.gap_collapse === 3 ? 60000 : 1
         const m = delta_range * k * ($p.config.GRIDX / $p.width)
 
         return Utils.nearest_a(m, TIMESCALES)[1] / k
@@ -398,6 +399,7 @@ function GridMaker(id, params, master_grid = null) {
         while (true) {
             t -= self.t_step
             const x = Utils.t2screen(t, range, self.spacex)
+// TODO: upstream has for above line:   let x = Math.floor((t  - range[0]) * r)
             if (x < 0) break
             // TODO: ==========> And insert it here somehow
             if (t % interval === 0) {
@@ -417,6 +419,7 @@ function GridMaker(id, params, master_grid = null) {
         while (true) {
             t += self.t_step
             const x = Utils.t2screen(t, range, self.spacex)
+// TODO: upstream has this for above line:              let x = Math.floor((t  - range[0]) * r)
             if (x > self.spacex) break
             if (t % interval === 0) {
                 self.xs.push([x, [t], interval])
