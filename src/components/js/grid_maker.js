@@ -126,7 +126,8 @@ function GridMaker(id, params, master_grid = null) {
         self.prec = calc_precision()
         const lens = sub.filter(x => typeof x[1] === 'number')
                         .map(x => x[1].toFixed(self.prec).length)
-
+        lens.push(self.$_hi.toFixed(self.prec).length)
+        lens.push(self.$_lo.toFixed(self.prec).length)
         const str = '0'.repeat(Math.max(...lens)) + '    '
 
         self.sb = ctx.measureText(str).width

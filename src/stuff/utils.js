@@ -149,7 +149,7 @@ export default {
     },
 
     // Fast filter (index-based)
-    fast_filter_i2(arr, range, movement) {
+    fast_filter_i2(arr, range, movement, interval) {
         if (arr.length === 0) {
             return {
                 ...range,
@@ -160,11 +160,11 @@ export default {
         let i1, i2;
         if (Array.isArray(movement)) {
             [i1, i2] = movement;
-            i1 = Math.floor(i1);
+            i1 = Math.floor(range.start + i1 - interval);
             if (i1 < 0) i1 = 0;
-            i2 = Math.floor(i2 + 1);
+            i2 = Math.floor(range.end + i2);  // TODO: always add 1?
         } else {  // typeof movement == number|object // TODO: object usage not allowed, not yet anyway!
-            i2 = movement + 1;  // TODO: always add 1?
+            i2 = range.end + movement + 1;  // TODO: always add 1?
             i1 = i2 - range.delta;
             if (i1 < 0) i1 = 0;
         }
@@ -174,8 +174,7 @@ export default {
 
     // Nearest indexes (left and right)
     fast_nearest(arr, t1) {
-        const ia = new IndexedArray(arr, '0')
-        ia.fetch(t1)
+        const ia = new IndexedArray(arr, '0').fetch(t1)
         return [ia.nextlow, ia.nexthigh]
     },
 

@@ -291,7 +291,7 @@ export default class Grid {
      */
     mousedrag(x, y) {
 
-        const ls = this.layout.grid.logScale
+        const ls = !!this.layout.grid.logScale
         let range = null
 
         if (ls && this.drag.y_r) {
