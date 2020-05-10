@@ -6,56 +6,44 @@ const MAX_ARR = Math.pow(2, 32)
 
 export default class TI {
 
-    constructor() {
-
-        this.ib = false
-    }
-
-    init(params, res) {
-
+    constructor(params, res) {
         let {
-            sub, onchart, interval, meta, $props:$p,
-            interval_ms, sub_start, ib
+            sub, onchart, interval, meta, $props: $p,
+            interval_ms, sub_start,
         } = params
 
         this.ti_map = []
         this.it_map = []
         this.sub_i = []
-        this.ib = ib
         this.sub = res
         this.ss = sub_start
         this.tf = interval_ms
         let start = meta.sub_start
 
         // Skip mapping for the regular mode
-        if (this.ib) {
-            this.map_sub(res)
-        }
-
+        this.map_sub(res)
     }
 
     // Make maps for the main subset
     map_sub(res) {
 
-        for (var i = 0; i < res.length; i++) {
-            let t = res[i][0]
-            let _i = (this.ss + i)
+        for (let i = 0; i < res.length; i++) {
+            const t = res[i][0]
+            const _i = this.ss + i
             this.ti_map[t] = _i
             this.it_map[_i] = t
 
-            // Overwrite t with i
-            let copy = [...res[i]]
-            copy[0] = _i
-            this.sub_i.push(copy)
-
+            // Overwrite time w/ index; note this has important implications elsewhere in the logic!
+            const candle_copy = [...res[i]]
+            candle_copy[0] = _i
+            this.sub_i.push(candle_copy)
         }
-
     }
 
     // Map overlay data
     // TODO: parse() called 3 times instead of 2 for 'spx_sample.json'
     parse(data) {
-        if (!this.ib || !this.sub[0]) return data
+        if (!this.sub[0]) return data
         let res = []
         let k = 0 // Candlestick index
 
@@ -95,7 +83,7 @@ export default class TI {
     // index => time
     i2t(i) {
 
-        if (!this.ib || !this.sub.length) return i // Regular mode
+        if (!this.sub.length) return i // Regular mode
 
         // Discrete mapping
         let res = this.it_map[i]

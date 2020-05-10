@@ -16,7 +16,7 @@ const YEAR = MONTH * 12
 const MONTHMAP = [
     "Jan", "Feb", "Mar", "Apr",
     "May", "Jun","Jul", "Aug",
-    "Sep", "Oct","Nov", "Dec"
+    "Sep", "Oct","Nov", "Dec",
 ]
 
 // Grid time steps
@@ -25,7 +25,7 @@ const TIMESCALES = [
     MONTH * 6, MONTH * 4, MONTH * 3, MONTH * 2, MONTH,
     DAY * 15, DAY * 10, DAY * 7, DAY * 5, DAY * 3, DAY * 2, DAY,
     HOUR * 12, HOUR * 6, HOUR * 3, HOUR * 1.5, HOUR,
-    MINUTE30, MINUTE15, MINUTE * 10, MINUTE5, MINUTE * 2, MINUTE
+    MINUTE30, MINUTE15, MINUTE * 10, MINUTE5, MINUTE * 2, MINUTE,
 ]
 
 // Grid $ steps
@@ -51,7 +51,7 @@ const ChartConfig = {
     MIN_ZOOM: 25,   // candles
     MAX_ZOOM: 1000, // candles,
     VOLSCALE: 0.15, // %/100 of height
-    UX_OPACITY: 0.9 // Ux background opacity
+    UX_OPACITY: 0.9, // Ux background opacity
 }
 
 ChartConfig.FONT =
@@ -79,7 +79,7 @@ const MAP_UNIT = {
   "1D": DAY,
   "1W": WEEK,
   "1M": MONTH,
-  "1Y": YEAR
+  "1Y": YEAR,
 }
 
 export default {
@@ -98,6 +98,6 @@ export default {
     TIMESCALES: TIMESCALES,
     $SCALES: $SCALES,
     ChartConfig: ChartConfig,
-    map_unit: MAP_UNIT.
-    WKD_GAP_DURATION: HOUR * 36,  // minimum data gap to qualify as weekend gap
+    map_unit: MAP_UNIT,
+    WKD_GAP_DURATION: HOUR * 36,  // minimum data gap to qualify as weekend gap; used in the gap_collapse=1 mode
 }

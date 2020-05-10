@@ -44,7 +44,7 @@ const TESTS = {
     Simple, MouseEvents, Timeframes, Multichart,
     LegendButtons, ChartTypes, DataHelper, Toolbar,
     GridSettings, Interfaces, IndexBased, Performance,
-    Renko
+    Renko,
 }
 
 export default {

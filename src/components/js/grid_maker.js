@@ -14,7 +14,7 @@ function GridMaker(id, params, master_grid = null) {
 
     const {
         sub, interval, range, ctx, $p, layers_meta, height, y_t, ti_map,
-        grid
+        grid,
     } = params
 
     const self = {  // layout object? what's the semantics between 'layout' and 'grid'?
@@ -37,6 +37,7 @@ function GridMaker(id, params, master_grid = null) {
         $_lo: -1,  // min vertical range w/ the buffer, ie absolute
         //volume: []  // list of volbar definitions, created in layout.js for master grid
         //candles: [],  // list of candle definitions, created in layout.js for master grid
+        gap_collapse: $p.gap_collapse,
     }
 
     const ls = grid.logScale
@@ -220,7 +221,7 @@ function GridMaker(id, params, master_grid = null) {
 
     // Select nearest good-looking t step (m is target scale)
     function time_step(delta_range) {
-        const k = ti_map.ib ? 60000 : 1
+        const k = $p.gap_collapse === 3 ? 60000 : 1
         const m = delta_range * k * ($p.config.GRIDX / $p.width)
 
         return Utils.nearest_a(m, TIMESCALES)[1] / k
@@ -291,6 +292,7 @@ function GridMaker(id, params, master_grid = null) {
                 const p = sub[i]
                 if (p[0] % self.t_step === 0) {  // TODO: this check is to make sure candle fits nicely or what?
                     const x = Utils.t2screen(p[0], range, self.spacex)
+// TODO: upsteam has instead:  let x = Math.floor((p[0] - range[0]) * r)    for above line
                     self.xs.push([x, p])
                 }
             }
@@ -321,6 +323,7 @@ function GridMaker(id, params, master_grid = null) {
         while (true) {
             t -= self.t_step
             const x = Utils.t2screen(t, range, self.spacex)
+// TODO: upstream has for above line:   let x = Math.floor((t  - range[0]) * r)
             if (x < 0) break
             if (t % interval === 0) {
                 self.xs.unshift([x, [t]])  // TODO: adding bogus datapoint to the front?
@@ -339,6 +342,7 @@ function GridMaker(id, params, master_grid = null) {
         while (true) {
             t += self.t_step
             const x = Utils.t2screen(t, range, self.spacex)
+// TODO: upstream has this for above line:              let x = Math.floor((t  - range[0]) * r)
             if (x > self.spacex) break
             if (t % interval === 0) {
                 self.xs.push([x, [t]])

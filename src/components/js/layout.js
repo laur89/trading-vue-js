@@ -102,11 +102,12 @@ function Layout(_chart) {
                     break;
                 default:  // including gap_collapse v1
                     mid_x = Utils.t2screen(p[0], range, self.spacex)
+// TODO: upstream has above line as:  mid = self.t2screen(p[0]) + 0.5
                     break;
             }
 
             self.candles.push(mgrid.logScale ?
-                log_scale.candle(self, mid, p, $p): {
+                log_scale.candle(self, mid_x, p, $p): {
                 x: mid_x,
                 w: self.px_step * $p.config.CANDLEW,
                 o: Math.floor(p[1] * self.A + self.B),
@@ -125,7 +126,7 @@ function Layout(_chart) {
                     x2 = Math.floor(mid_x - self.px_step * 0.5) //- 0.5
                     prev = x2 - vol_splitter
                     break;
-                default:  // the old, pre-gap collapsing logic
+                default:  // the old, pre-gap collapsing logic; TODO: deprecate?
                     // Clear volume bar if there is a time gap
                     if (sub[i+1] && p[0] - sub[i+1][0] > interval) {
                         prev = null
@@ -160,7 +161,7 @@ function Layout(_chart) {
     // Sub grids
     for (let [i, { data, grid }] of offsub.entries()) {
         specs.sub = data
-        specs.height = hs[i + 1]
+        specs.height = heights[i + 1]
         specs.y_t = y_ts[i + 1]
         specs.grid = grid || {}
         gms.push(new GridMaker(i + 1, specs, gms[0].get_layout()))

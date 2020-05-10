@@ -56,9 +56,10 @@ export default class Grid {
                 y: event.center.y + this.offset_y,
                 r: Object.assign({}, this.range),
                 o: tfrm ? (tfrm.offset || 0) : 0,
-                y_r: tfrm && tfrm.range ? Object.assign({}, tfrm.range) : undefined,
+                y_r: tfrm && Array.isArray(tfrm.range) ?
+                    tfrm.range.slice(0) : undefined,
                 B: this.layout.B,
-                compound: 0,
+                compound: 0,  // compounding tally of our x-axis movement from the position where panstart stared from
             }
             this.comp.$emit('cursor-changed', {
                 grid_id: this.id,
@@ -285,44 +286,43 @@ export default class Grid {
 
     /**
      * Call w/ updated coords
-// TODO: rename drug-drag
      * @param x new!
      * @param y new!
      */
     mousedrag(x, y) {
 
-        if (this.$p.y_transform && !this.$p.y_transform.auto) {
+        const ls = this.layout.grid.logScale
+        let range = null
+
+        if (ls && this.drag.y_r) {
+            const dy = this.drag.y - y
+            range = this.drag.y_r.slice(0)
+            range[0] = math.exp((0 - this.drag.B + dy) /
+                this.layout.A)
+            range[1] = math.exp(
+                (this.layout.height - this.drag.B + dy) /
+                this.layout.A)
+        }
+
+        if (this.$p.y_transform && !this.$p.y_transform.auto && this.drag.y_r) {
 
             let d$ = this.layout.$_hi - this.layout.$_lo
             d$ *= (this.drag.y - y) / this.layout.height
             const offset = this.drag.o + d$
 
-        let ls = this.layout.grid.logScale
-
-        if (ls && this.drug.y_r) {
-            let dy = this.drug.y - y
-            var range = this.drug.y_r.slice()
-            range[0] = math.exp((0 - this.drug.B + dy) /
-                this.layout.A)
-            range[1] = math.exp(
-                (this.layout.height - this.drug.B + dy) /
-                this.layout.A)
-        }
-
-        if (this.drug.y_r && this.$p.y_transform &&
-            !this.$p.y_transform.auto) {
             this.comp.$emit('sidebar-transform', {
                 grid_id: this.id,
-                range: ls ? (range || this.drug.y_r) : [
+                range: ls ? (range || this.drag.y_r) : [
                     this.drag.y_r[0] - offset,
                     this.drag.y_r[1] - offset,
                 ]
             })
         }
 
-        const dt = this.drag.r.delta * (this.drag.x - x) / this.layout.width
-        this.change_range(dt - this.drag.compound, dt - this.drag.compound)
-        this.drag.compound = dt
+        const dt_from_starting_position = this.drag.r.delta * (this.drag.x - x) / this.layout.width
+        const dx = dt_from_starting_position - this.drag.compound
+        this.change_range(dx, dx)
+        this.drag.compound = dt_from_starting_position
     }
 
     pinchzoom(scale) {

@@ -144,7 +144,7 @@ export default {
                         type: d.type,
                         data: d.data,
                         settings: d.settings,
-                        tf: d.tf
+                        tf: d.tf,
                     })
                     type_counts[d.type] = 0
                 }
@@ -160,7 +160,7 @@ export default {
                         tf: x.tf,
                         num: i,
                         grid_id: this.$props.grid_id,
-                        meta: this.$props.meta
+                        meta: this.$props.meta,
                     })
                 })
             )
@@ -177,7 +177,7 @@ export default {
             }
         },
         emit_ux_event(e) {
-            let e_pass = this.on_ux_event(e, 'grid')
+            const e_pass = this.on_ux_event(e, 'grid')
             if (e_pass) this.$emit('custom-event', e)
         }
     },

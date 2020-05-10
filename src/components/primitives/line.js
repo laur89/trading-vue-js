@@ -51,8 +51,6 @@ export default class Line {
 
     // Collision function. x, y - mouse coord.
     make(p1, p2) {
-        return (x, y) => {
-            return Math2.point2line([x, y], p1, p2) < this.T
-        }
+        return (x, y) => Math2.point2line([x, y], p1, p2) < this.T
     }
 }

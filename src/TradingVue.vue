@@ -150,10 +150,6 @@ export default {
             type: Array,
             default: function () { return [] }
         },
-        indexBased: {
-            type: Boolean,
-            default: false
-        }
     },
     computed: {
         // Copy a subset of TradingVue props
@@ -170,8 +166,7 @@ export default {
                 font: this.$props.font,
                 buttons: this.$props.legendButtons,
                 toolbar: this.$props.toolbar,
-                ib: this.$props.indexBased || this.index_based || false,
-                gap_collapse: this.$props.gap_collapse,
+                gap_collapse: this.get_effective_collapse_mode,
                 colors: {}
             }
 
@@ -200,15 +195,14 @@ export default {
                 return data
             }
         },
-        index_based() {
+        get_effective_collapse_mode() {
             const base = this.$props.data
-            if (base.chart) {
-                return base.chart.indexBased
+            // TODO: remove this indexBased nonsense & only use gap_collapse?
+            if (this.$props.indexBased || (base.chart && base.chart.indexBased) || (base.data && base.data.chart.indexBased)) {
+                return 3;
             }
-            else if (base.data) {
-                return base.data.chart.indexBased
-            }
-            return false
+
+            return this.$props.gap_collapse
         }
     },
     data() {
@@ -232,7 +226,7 @@ export default {
         },
         goto(t) {
             // TODO: limit goto & setRange (out of data error)
-            if (this.chart_props.ib) {
+            if (this.chart_props.gap_collapse === 3) {
                 const ti_map = this.$refs.chart.ti_map
                 t = ti_map.smth2i(t)
             }
@@ -242,7 +236,7 @@ export default {
             this.$refs.chart.goto([t, t])
         },
         setRange(t1, t2) {
-            if (this.chart_props.ib) {
+            if (this.chart_props.gap_collapse === 3) {
                 const ti_map = this.$refs.chart.ti_map
                 t1 = ti_map.smth2i(t1)
                 t2 = ti_map.smth2i(t2)
@@ -251,7 +245,7 @@ export default {
             this.$refs.chart.setRange(t1, t2)
         },
         getRange() {
-            if (this.chart_props.ib) {
+            if (this.chart_props.gap_collapse === 3) {
                 // Time range => index range
                 const ti_map = this.$refs.chart.ti_map
                 return this.$refs.chart.range
@@ -260,10 +254,10 @@ export default {
             return this.$refs.chart.range
         },
         getCursor() {
-            let cursor = this.$refs.chart.cursor
-            if (this.chart_props.ib) {
-                let ti_map = this.$refs.chart.ti_map
-                let copy = Object.assign({}, cursor)
+            const cursor = this.$refs.chart.cursor
+            if (this.chart_props.gap_collapse === 3) {
+                const ti_map = this.$refs.chart.ti_map
+                const copy = Object.assign({}, cursor)
                 copy.i = copy.t
                 copy.t = ti_map.i2t(copy.t)
                 return copy

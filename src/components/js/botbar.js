@@ -18,6 +18,7 @@ export default class Botbar {
     }
 
     update() {
+        this.grid_0 = this.layout.grids[0]  // master grid
 
         const width = this.layout.botbar.width
         const height = this.layout.botbar.height
@@ -98,7 +99,7 @@ export default class Botbar {
      * @returns {string|number|*}
      */
     format_date(t, next_candle) {
-        t = this.grid_0.ti_map.i2t(t)
+        if (this.$p.gap_collapse === 3) t = this.grid_0.ti_map.i2t(t)
 
         t += new Date(t).getTimezoneOffset() * MINUTE
         const d = new Date(t)
@@ -125,7 +126,7 @@ export default class Botbar {
 
     format_cursor_x() {
         let t = this.$p.cursor.t
-        t = this.grid_0.ti_map.i2t(t)
+        if (this.$p.gap_collapse === 3) t = this.grid_0.ti_map.i2t(t)
         t += new Date(t).getTimezoneOffset() * MINUTE
         const d = new Date(t)
         const ti = this.$p.interval

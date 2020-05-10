@@ -145,22 +145,36 @@ export default {
     // Fast filter. Really fast, like 10X
     fast_filter(arr, t1, t2) {
         if (arr.length === 0) return arr
-        return new [IndexedArray(arr, '0').getRange(t1, t2).reverse()];
+        return new IndexedArray(arr, '0').getRange(t1, t2).reverse();
     },
 
     // Fast filter (index-based)
-    fast_filter_i(arr, t1, t2) {
-        if (!arr.length) return arr
-        let i1 =  Math.floor(t1)
-        if (i1 < 0) i1 = 0
-        let i2 =  Math.floor(t2 + 1)
-        let res = arr.slice(i1, i2)
-        return [res, i1]
+    fast_filter_i2(arr, range, movement) {
+        if (arr.length === 0) {
+            return {
+                ...range,
+                data: [],
+            }
+        }
+
+        let i1, i2;
+        if (Array.isArray(movement)) {
+            [i1, i2] = movement;
+            i1 = Math.floor(i1);
+            if (i1 < 0) i1 = 0;
+            i2 = Math.floor(i2 + 1);
+        } else {  // typeof movement == number|object // TODO: object usage not allowed, not yet anyway!
+            i2 = movement + 1;  // TODO: always add 1?
+            i1 = i2 - range.delta;
+            if (i1 < 0) i1 = 0;
+        }
+
+        return {start: i1, end: i2, delta: i2-i1, data: arr.slice(i1, i2)};
     },
 
     // Nearest indexes (left and right)
     fast_nearest(arr, t1) {
-        let ia = new IndexedArray(arr, "0")
+        const ia = new IndexedArray(arr, '0')
         ia.fetch(t1)
         return [ia.nextlow, ia.nexthigh]
     },

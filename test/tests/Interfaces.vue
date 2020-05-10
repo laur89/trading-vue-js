@@ -12,7 +12,7 @@
 import TradingVue from '../../src/TradingVue.vue'
 import DataCube from '../../src/helpers/datacube.js'
 import Data from '../data/data_ux.json'
-import SplineUx from './interfaces/SplineUx.vue'
+import SplineUx from './Interfaces/SplineUx.vue'
 
 export default {
     name: 'Interfaces',

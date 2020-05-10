@@ -7,5 +7,5 @@ new Vue({
   render: h => h(App)
 });
 
-const isDev = process.env.NODE_ENV !== "production"
+const isDev = process.env.NODE_ENV !== 'production'
 Vue.config.performance = isDev
