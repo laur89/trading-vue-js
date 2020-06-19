@@ -227,7 +227,11 @@ export default {
         goto(t) {
             // TODO: limit goto & setRange (out of data error)
             if (this.chart_props.gap_collapse === 3) {
-                const ti_map = this.$refs.chart.ti_map
+                if (typeof t === 'object') {
+                    t = t.e;  // TODO object argument not supported by gap_collapse = 3 yet
+                }
+
+                const ti_map = this.$refs.chart.ti_map;
                 t = ti_map.smth2i(t)
             }
             this.$refs.chart.goto(t)

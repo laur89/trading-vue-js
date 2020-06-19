@@ -101,14 +101,14 @@ export default class DCCore extends DCEvents {
 
         let head = Infinity, tail = -Infinity;
         if (d.length !== 0) {
-            head = d[0][0]
-            tail = d[d.length - 1][0]
+            head = this._getHead();
+            tail = this._getTail();
         }
 
         if (this.dynamicData.isHead && !this.unsubIfNeeded(range.end, tail)) {
             // we didn't subscribe, bail here - no reason to continue w/ range_changed logic
-            this.dynamicData.loading = false
-            return
+            this.dynamicData.loading = false;
+            return;
         } else if (!this.tv.$refs.chart.dc_legend_displayed && range.end < tail - this.dynamicData.timeframe * 100) {  // TODO this check same as in unsubIfNeeded()!
             this.tv.$refs.chart.dc_legend_displayed = true;
         } else if (this.tv.$refs.chart.dc_legend_displayed && range.end >= tail) {
@@ -119,10 +119,10 @@ export default class DCCore extends DCEvents {
         const fetchTriggerMarginMs = this.dynamicData.fetchTriggerMargin * this.dynamicData.timeframe
         range.start = (!this.dynamicData.isBeginning && range.start - fetchTriggerMarginMs < head)
             ? Math.floor(Math.min(range.start, head) - fetchLookAheadMs)
-            : tail
+            : tail;
         range.end = (!this.dynamicData.isEnd && range.end + fetchTriggerMarginMs > tail)
             ? Math.ceil(Math.max(range.end, tail) + fetchLookAheadMs)
-            : head
+            : head;
 
         if (range.start < head || range.end > tail) {  // _at least_ one end needs more data
             this.fetchAndProcess(range, head, tail)
@@ -136,8 +136,8 @@ export default class DCCore extends DCEvents {
     // see if we should un-subscribe from live data if we've 'snapped' back far enough from tail:
     unsubIfNeeded = (rangeTail, tail) => {
         if (this.dynamicData.unsub !== null && rangeTail < tail - this.dynamicData.timeframe * 100) {
-            this.dynamicData.isHead = false  // we're no longer keeping up-to-date w/ live events
-            this.dynamicData.unsub()
+            this.dynamicData.isHead = false;  // we're no longer keeping up-to-date w/ live events
+            this.dynamicData.unsub();
             return true
         }
 
@@ -157,12 +157,23 @@ export default class DCCore extends DCEvents {
             // fetchDirection = 0 means we need to pull data for both ends, ie 2 requests
 
             latch = Utils.create_latch(2)
+
+            let anchorHead = head;
+            let anchorTail = tail;
+            if (this.tv.$refs.chart.ti_map !== null) {
+                anchorHead = this.tv.$refs.chart.ti_map.i2t(anchorHead);
+                anchorTail = this.tv.$refs.chart.ti_map.i2t(anchorTail);
+            }
             promises = [
-                this.dynamicData.loadForRange(head, Math.ceil((head - range.start) / this.dynamicData.timeframe), -1, this.dynamicData.timeframe, cb),
-                this.dynamicData.loadForRange(tail, Math.ceil((range.end - tail) / this.dynamicData.timeframe), 1, this.dynamicData.timeframe, cb),
+                this.dynamicData.loadForRange(anchorHead, Math.ceil((head - range.start) / this.dynamicData.timeframe), -1, this.dynamicData.timeframe, cb),
+                this.dynamicData.loadForRange(anchorTail, Math.ceil((range.end - tail) / this.dynamicData.timeframe), 1, this.dynamicData.timeframe, cb),
             ]
         } else {  // need to pull data only for either end
-            const anchorTime = fetchDirection === 1 ? range.start : range.end;
+            let anchorTime = fetchDirection === 1 ? range.start : range.end;
+            if (this.tv.$refs.chart.ti_map !== null) {
+                anchorTime = this.tv.$refs.chart.ti_map.i2t(anchorTime);
+            }
+
             const numberOfDataPoints = Math.ceil((range.end - range.start) / this.dynamicData.timeframe)
             promises = [
                 this.dynamicData.loadForRange(anchorTime, numberOfDataPoints, fetchDirection, this.dynamicData.timeframe, cb)
@@ -206,8 +217,7 @@ export default class DCCore extends DCEvents {
                 }
 
                 if (this.dynamicData.isHead) {
-                    const d = this.data.chart.data
-                    const tail = d.length === 0 ? -1 : d[d.length - 1][0]
+                    const tail = this._getTail();
 
                     // if the tail of last/latest pulled data is close enough to our visible tail OR
                     // we just pulled the tail (1st req), subscribe to live data feed:
@@ -217,7 +227,7 @@ export default class DCCore extends DCEvents {
 
                         // TODO: possibly need invoking via setTimeout/$nextTick only with isTail (ie during very first init), as chart range hasn't been init'd yet
                         this.tv.$nextTick(() => {
-                            this.tv.goto(tail)
+                            this.tv.goto(tail);
                             this.dynamicData.sub(tail);  // call sub w/ the latest timestamp we have
                         })
                     } else {
@@ -288,12 +298,31 @@ export default class DCCore extends DCEvents {
         }
     }
 
+    _getTail = () => {
+        const d = this.data.chart.data;
+        const tail = d.length === 0 ? -1 : d[d.length-1][0];  // note tv's chart.vue keeps track of last cnadle as well
+        if (this.tv.$refs.chart.ti_map !== null) {
+            return this.tv.$refs.chart.ti_map.t2i(tail);
+        }
+
+        return tail;
+    }
+
+    _getHead = () => {
+        const d = this.data.chart.data;
+        const head = d.length === 0 ? -1 : d[0][0];
+        if (this.tv.$refs.chart.ti_map !== null) {
+            return this.tv.$refs.chart.ti_map.t2i(head);
+        }
+
+        return head;
+    }
+
     // TODO: do not goto if scroll-lock is enabled! (different from cursor lock)
     // TODO: also pass additional meta-flag indicating when feed has finished, so we know to unsub()?
     received_live_data = data => {
 
-        let d = this.data.chart.data
-        const oldTail = d.length === 0 ? -1 : d[d.length-1][0]  // TODO extract into getTail() or something; note tv's chart.vue keeps track of last cnadle as well
+        const oldTail = this._getTail();
         //const trunc = i => Math.ceil(i/this.dynamicData.timeframe) * this.dynamicData.timeframe
 
         if (Array.isArray(data)) {
@@ -306,11 +335,11 @@ export default class DCCore extends DCEvents {
             return
         }
 
-        d = this.data.chart.data
+        const d = this.data.chart.data
         if (!this.dynamicData.cursorLock && d.length !== 0 && this.dynamicData.rangeToQuery.end >= oldTail) {  // TODO: perhaps (oldTail - couple_of_candles) to allow sliiight scrollback w/o losing goto()?
             this.tv.goto(d[d.length-1][0])
         } else {
-            if (this.unsubIfNeeded(this.dynamicData.rangeToQuery.end, d.length === 0 ? -1 : d[d.length-1][0])) {
+            if (this.unsubIfNeeded(this.dynamicData.rangeToQuery.end, this._getTail())) {
                 this.tv.$refs.chart.dc_legend_displayed = true;
             }
         }
@@ -429,46 +458,51 @@ export default class DCCore extends DCEvents {
 
         return this.data[side].filter(
             x => x.id && x.name && x.settings && (
-                 x.id === query ||
-                 x.id.includes(path) ||
-                 x.name === query ||
-                 x.name.includes(path) ||
-                 query.includes(x.settings.$uuid)
+                x.id === query ||
+                x.id.includes(path) ||
+                x.name === query ||
+                x.name.includes(path) ||
+                query.includes(x.settings.$uuid)
             )).map( (x, idx) => {
-                if (field) {
-                    return {
-                        p: x,
-                        i: field,  // TODO: index should be field like this?
-                        v: x[field]
-                    };
-                } else {
-                    return {
-                        p: this.data[side],
-                        i: idx,
-                        v: x
-                    };
-                }
-            })
+            if (field) {
+                return {
+                    p: x,
+                    i: field,  // TODO: index should be field like this?
+                    v: x[field]
+                };
+            } else {
+                return {
+                    p: this.data[side],
+                    i: idx,
+                    v: x
+                };
+            }
+        })
     }
 
-    _merge_customizer = (objValue, srcValue, key) => {
-        if (Array.isArray(objValue) && Array.isArray(objValue[0]) && objValue[0].length >= 2 && isFinite(objValue[0][0])) {
-            return this.merge_ts(objValue, srcValue)
+    _merge_customizer = (orderIndex, objValue, srcValue, key) => {
+        if (Array.isArray(objValue) && Array.isArray(objValue[0]) && objValue[0].length >= 2 && objValue[0].length >= orderIndex+1 && isFinite(objValue[0][orderIndex])) {  // TODO: unsure about 'objValue[0].length >= 2' check
+            return this.merge_ts(objValue, srcValue, orderIndex);
         } else if (this.on_or_off_chart(key)) {  // TODO: deprecate this check? think it's dead code
-        // TODO: depends now whether srcVal is arr or obj right?
+            // TODO: depends now whether srcVal is arr or obj right?
         }
     }
 
     merge_objects(obj, data) {
+        let orderIndex = 0;  // by default time is expected to be at 0 index in data-array
+        if (data.hasOwnProperty('settings') && data.settings.hasOwnProperty('orderIndex')) {
+            orderIndex = data.settings.orderIndex || 0;
+        }
+
         //window.console.log(` -> 11111 mergin: [${JSON.stringify(obj)}] and [${JSON.stringify(data)}]`)
-        const new_obj = Array.isArray(obj.v) ? [] : {}
-        this.tv.$set(obj.p, obj.i, mergeWith(new_obj, obj.v, data, this._merge_customizer))
+        const new_obj = Array.isArray(obj.v) ? [] : {};
+        this.tv.$set(obj.p, obj.i, mergeWith(new_obj, obj.v, data, this._merge_customizer.bind(null, orderIndex)));
         //window.console.log(` -> 11111 postmrg: [${JSON.stringify(new_obj)}]`)
     }
 
     // Merge (possibly overlapping) time series;
     // Assume that both input arrays are pre-sorted
-    merge_ts(obj, data) {
+    merge_ts(obj, data, orderIndex) {
 
         if (!data.length) {
             return obj
@@ -476,8 +510,8 @@ export default class DCCore extends DCEvents {
             return data
         }
 
-        const r1 = [obj[0][0], obj[obj.length - 1][0]]
-        const r2 = [data[0][0], data[data.length - 1][0]]
+        const r1 = [obj[0][orderIndex], obj[obj.length - 1][orderIndex]]
+        const r2 = [data[0][orderIndex], data[data.length - 1][orderIndex]]
 
         const o = [  // Overlap
             Math.max(r1[0], r2[0]),
@@ -486,7 +520,7 @@ export default class DCCore extends DCEvents {
 
         if (o[1] >= o[0]) {  // data overlaps
 
-            const { od, d1, d2 } = this.ts_overlap(obj, data, o)
+            const { od, d1, d2 } = this.ts_overlap(obj, data, orderIndex, o)
 
             obj.splice(...d1)
             data.splice(...d2)
@@ -502,18 +536,18 @@ export default class DCCore extends DCEvents {
             // If dst is totally contained in src
             if (!obj.length) { obj = data.splice(d2[0]) }
 
-            return this.combine(obj, od, data)
+            return this.combine(obj, od, data, orderIndex)
 
         } else {  // no overlap
 
-            return this.combine(obj, [], data)
+            return this.combine(obj, [], data, orderIndex)
         }
     }
 
     // TODO: review performance, move to worker
-    ts_overlap(arr1, arr2, [t1, t2]) {
+    ts_overlap(arr1, arr2, orderIndex, [t1, t2]) {
 
-        const filter_mutual_overlap = x => x[0] >= t1 && x[0] <= t2
+        const filter_mutual_overlap = x => x[orderIndex] >= t1 && x[orderIndex] <= t2
 
         const arr1_overlap = arr1.filter(filter_mutual_overlap)
         const arr2_overlap = arr2.filter(filter_mutual_overlap)
@@ -521,14 +555,12 @@ export default class DCCore extends DCEvents {
         const ts = {}  // overlap range timestamp-to-datapoint map; note arr2 overrides timestamps of arr1
 
         for (const data_point of arr1_overlap) {
-            ts[data_point[0]] = data_point
+            ts[data_point[orderIndex]] = data_point
         }
 
         for (const data_point of arr2_overlap) {
-            ts[data_point[0]] = data_point
+            ts[data_point[orderIndex]] = data_point
         }
-
-        const ts_sorted = Object.keys(ts).sort()
 
         // Indices of segments
         const arr1_overlap_start_index = arr1.indexOf(arr1_overlap[0])
@@ -537,24 +569,24 @@ export default class DCCore extends DCEvents {
         const arr2_overlap_end_index = arr2.indexOf(arr2_overlap[arr2_overlap.length - 1])
 
         return {
-            od: ts_sorted.map(x => ts[x]),  // normalized overlap range of full datapoints
+            od: Object.keys(ts).sort().map(x => ts[x]),  // normalized overlap range of full datapoints
             d1: [arr1_overlap_start_index, arr1_overlap_end_index - arr1_overlap_start_index + 1],
-            d2: [arr2_overlap_start_index, arr2_overlap_end_index - arr2_overlap_start_index + 1]
+            d2: [arr2_overlap_start_index, arr2_overlap_end_index - arr2_overlap_start_index + 1],
         }
     }
 
     // Combine parts together:
     // (destination, overlap, source)
-    combine(dst, o, src) {
+    combine(dst, o, src, orderIndex) {
 
-        const last = arr => arr[arr.length - 1][0]
+        const last = arr => arr[arr.length - 1][orderIndex]
         const max_len_for_push = 100000
 
         if (!dst.length) { dst = o; o = [] }
         if (!src.length) { src = o; o = [] }
 
         // TODO: first if-block unreachable?
-        if (src[0][0] >= dst[0][0] && last(src) <= last(dst)) {
+        if (src[0][orderIndex] >= dst[0][orderIndex] && last(src) <= last(dst)) {
 
             return Object.assign(dst, o)
 
@@ -568,7 +600,7 @@ export default class DCCore extends DCEvents {
                 return dst.concat(o, src)
             }
 
-        } else if (src[0][0] < dst[0][0]) {
+        } else if (src[0][orderIndex] < dst[0][orderIndex]) {
 
             // Push(...) is faster but can overflow the stack
             if (o.length < max_len_for_push && src.length < max_len_for_push) {

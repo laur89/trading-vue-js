@@ -9,7 +9,7 @@ export default {
     mixins: [Canvas],
     props: [
         'sub', 'layout', 'range', 'interval', 'cursor', 'colors', 'font',
-        'width', 'height', 'rerender', 'tv_id', 'config', 'shaders'
+        'width', 'height', 'rerender', 'tv_id', 'config', 'shaders', 'gap_collapse',
     ],
     mounted() {
         const el = this.$refs['canvas']

@@ -5,7 +5,7 @@ export default class VolbarExt {
         this.ctx = ctx
         this.$p = overlay.$props
         this.self = overlay
-        this.style = data.raw[6] || this.self
+        this.style = typeof data.raw[6] === 'object' ? data.raw[6] : this.self;
         this.draw(data)
     }
 

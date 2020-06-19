@@ -40,7 +40,7 @@ function GridMaker(id, params, master_grid = null) {
         gap_collapse: $p.gap_collapse,
     }
 
-    const ls = grid.logScale
+    const ls = !!grid.logScale
 
     // Calc vertical ($/₿) range
     function calc_$range() {
