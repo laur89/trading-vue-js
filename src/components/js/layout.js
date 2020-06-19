@@ -99,6 +99,7 @@ function Layout(_chart) {
             let mid_x;
             switch ($p.gap_collapse) {
                 case 2:
+                case 3:
                     mid_x = self.startx - self.px_step * i;
                     break;
                 default:  // including gap_collapse v1
@@ -123,6 +124,7 @@ function Layout(_chart) {
             switch ($p.gap_collapse) {
                 case 1:
                 case 2:
+                case 3:
                     x1 = prev || Math.floor(mid_x + self.px_step * 0.5)
                     x2 = Math.floor(mid_x - self.px_step * 0.5) //- 0.5
                     prev = x2 - vol_splitter

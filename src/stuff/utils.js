@@ -184,7 +184,7 @@ export default {
 
 
     // Fast filter (index-based)
-    fast_filter_i2(arr, range, movement, interval) {
+    fast_filter_i(arr, range, movement) {
         if (arr.length === 0) {
             return {
                 ...range,
@@ -192,19 +192,29 @@ export default {
             }
         }
 
-        let i1, i2;
+        let i1, i2, start, end;
         if (Array.isArray(movement)) {
             [i1, i2] = movement;
-            i1 = Math.floor(range.start + i1 - interval);
+            start = range.start + i1;
+            end = range.end + i2;
+            i1 = Math.floor(start - 1);  // note -1 here is "-this.interval" upstream (@Chart.vue)
             if (i1 < 0) i1 = 0;
-            i2 = Math.floor(range.end + i2);  // TODO: always add 1?
-        } else {  // typeof movement == number|object // TODO: object usage not allowed, not yet anyway!
-            i2 = range.end + movement + 1;  // TODO: always add 1?
-            i1 = i2 - range.delta;
+            i2 = Math.floor(end + 1);  // TODO: always add 1?
+        } else {  // typeof movement == number|object // TODO: object usage not supported, not yet anyway!
+            end = range.end + movement;
+            start = end - range.delta;
+            i2 = Math.floor(end + 1);  // TODO: always add 1?
+            i1 = Math.floor(i2 - range.delta);
             if (i1 < 0) i1 = 0;
         }
 
-        return {start: i1, end: i2, delta: i2-i1, data: arr.slice(i1, i2)};
+        return {
+            start_index: i1,
+            start,  // for range
+            end,  // for range
+            delta: end - start,  // for range
+            data: arr.slice(i1, i2),
+        };
     },
 
     // Nearest indexes (left and right)

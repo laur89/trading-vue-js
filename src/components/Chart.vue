@@ -39,6 +39,7 @@ import Shaders from '../mixins/shaders.js'
 import DataTrack from '../mixins/datatrack.js'
 import TI from './js/ti_mapping.js'
 import Const from '../stuff/constants.js'
+import IndexedArray from 'arrayslicer';
 
 
 export default {
@@ -67,7 +68,6 @@ export default {
 
         // Updates current cursor values
         this.updater = new CursorUpdater(this)
-
         this.update_last_values()
         this.init_shaders(this.skin)
     },
@@ -281,21 +281,19 @@ export default {
                     return data;
                 }
                 case 3: {  // == IB mode, ie index-based mode
-                    let { start, end, delta, data } = Utils.fast_filter_i2(
+                    let { start_index, start, end, delta, data } = Utils.fast_filter_i(
                         this.ohlcv,
                         this.range,
-                        //movement.start - this.interval,
-                        //movement.end
-                        movement,
-                        this.interval
+                        movement
                     );
 
                     if (Array.isArray(data) && data.length !== 0) {
-                        this.sub_start = start
-                        this.ti_map = new TI(this, data)
-                        data = this.ti_map.sub_i
+                        this.sub_start = start_index;
+                        this.sub_start_i = data[0][6];  // TODO: '6' needs to be parametrized
+                        this.ti_map = new TI(this, data);
+                        data = this.ti_map.sub_i.reverse();  // note here's where we reverse the dataset in gap_collapse=3 mode!
                     } else {
-                        return []
+                        return [];
                     }
 
                     // ! note no gaps in IB / gap_collapse=3 mode !
@@ -368,14 +366,14 @@ export default {
          */
         overlay_subset(source) {
             return source.map(d => {
-                let data
+                let data;
                 if (this.$props.gap_collapse === 3) {
                     data = this.ti_map.parse(Utils.fast_filter(
                         d.data,
-                        //this.ti_map.i2t(this.range.start - this.interval),
-                        //this.ti_map.i2t(this.range.end)
-                        this.ti_map.i2t(this.range.start - (d.tf || this.interval)),
-                        this.ti_map.i2t(this.range.end + (d.tf || this.interval))
+                        this.ti_map.i2t(this.range.start - this.interval),
+                        this.ti_map.i2t(this.range.end)
+                        //this.ti_map.i2t(this.range.start - (d.tf || this.interval)),
+                        //this.ti_map.i2t(this.range.end + (d.tf || this.interval))
                     ));
                 } else {
                     data = Utils.fast_filter(
@@ -594,6 +592,8 @@ export default {
                 // Change range index => time
                 this.range.start = this.ti_map.i2t(this.range.start)
                 this.range.end = this.ti_map.i2t(this.range.end)
+                this.range.delta = this.range.end - this.range.start
+                this.ti_map = null
                 //Utils.overwrite(this.range, [t1, t2])
                 this.interval = this.interval_ms
             } else {
@@ -618,14 +618,28 @@ export default {
         },
         data: {
             handler: function(n, p) {
-                const endTimestamp = this.sub.length === 0 ? this.init_range() : undefined  // init_range() should be called first thing here!
+                if (this.$props.gap_collapse === 3 && this.sub_start_i !== null) {
+                    const ia = new IndexedArray(n.chart.data, '6');  // TODO: '6' needs to be parametrized
+                    ia.fetch(this.sub_start_i);  // move cursor to current, pre-move end
+                    // TODO: issue if new data is fetched when gap is not yet visible - we lose all candles on reload
+                    if (ia.cursor !== this.sub_start) {
+                        const delta = ia.cursor - this.sub_start;
+                        this.range.start += delta;
+                        this.range.end += delta;
+                        this.sub_start = ia.cursor;  // TODO: why couldn't/shouldn't this be overridden?
+                    }
+                    // TODO: what to do if ia.cursor is null? is it possible?
+                }
+
+
+                const endTimestamp = this.sub.length === 0 ? this.init_range() : undefined;  // init_range() should be called first thing here!
                 this.init_secondary_series_tf();
 
                 // TODO: find a better solution thatn ohlcv.slice().reverse()!:
                 if (this.$props.gap_collapse === 1) {
                     Utils.overwrite(this.gaps, Utils.resolve_gaps(this.ohlcv.slice(0).reverse(), this.interval, this.$props.gap_collapse))
                 }
-                if (endTimestamp !== undefined) this.subset(endTimestamp)  // only call subset() if endTimestamp !== undefined, ie it's our first init
+                this.subset(endTimestamp);  // _always_ call subset in order to redraw when data changes, eg if data is lazy-loaded
 
                 // Fixes Infinite loop warn, when the subset is empty
                 // TODO: Consider removing 'sub' from data entirely
