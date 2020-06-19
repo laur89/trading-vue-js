@@ -42,7 +42,7 @@ function GridMaker(id, params, master_grid = null) {
 
     const lm = layers_meta[id]
     let y_range_fn = undefined
-    const ls = grid.logScale
+    const ls = !!grid.logScale
 
     if (lm !== null && typeof lm === 'object' && Object.keys(lm).length !== 0) {
         // The first y_range() determines the range

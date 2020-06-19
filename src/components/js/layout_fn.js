@@ -6,8 +6,7 @@ import math from '../../stuff/math.js'
 export default function(self, range) {
 
     const ib = self.gap_collapse === 3;
-    const dt = range.end - range.start
-    const r = self.spacex / dt
+    const r = self.spacex / range.delta;
     const ls = !!self.grid.logScale
 
     Object.assign(self, {

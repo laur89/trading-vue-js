@@ -6,7 +6,7 @@ export default class CandleExt {
     constructor(overlay, ctx, data) {
         this.ctx = ctx
         this.self = overlay
-        this.style = data.raw[6] || this.self
+        this.style = typeof data.raw[6] === 'object' ? data.raw[6] : this.self;
         this.draw(data)
     }
 

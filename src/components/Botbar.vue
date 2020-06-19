@@ -10,7 +10,7 @@ export default {
     props: [
         'sub', 'layout', 'range', 'interval', 'cursor', 'colors', 'font',
         'width', 'height', 'rerender', 'tv_id', 'config', 'shaders',
-        'timezone'
+        'timezone', 'gap_collapse'
     ],
     mounted() {
         const el = this.$refs['canvas']

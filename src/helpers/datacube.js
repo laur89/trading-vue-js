@@ -319,6 +319,7 @@ export default class DataCube extends DCCore {
                 }
 
                 this.dynamicData.loading = true;  // acquire lock
+                // TODO: currently the delta*1.5 we pass is based on indices if gap_collapse=3!
                 this.dynamicData.initData(Math.ceil(this.dynamicData.rangeToQuery.delta * 1.5)).then(data => {
                     this._clear_data();  // otherwise we're likely to get a gap between our current tail & head of getTail() call response, that could be interpreted as a wkd-gap!
                     this.chunk_loaded(data, 1);

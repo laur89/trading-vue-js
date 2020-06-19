@@ -41,16 +41,14 @@ export default {
             const data = this.$props.data
 
             if (!this.skip_nan) {
-                for (var k = 0, n = data.length; k < n; k++) {
-                    let p = data[k]
+                for (var p of data) {
                     let x = layout.t2screen(p[0])
                     let y = layout.$2screen(p[i])
                     ctx.lineTo(x, y)
                 }
             } else {
                 var skip = false
-                for (var k = 0, n = data.length; k < n; k++) {
-                    let p = data[k]
+                for (var p of data) {
                     let x = layout.t2screen(p[0])
                     let y = layout.$2screen(p[i])
                     if (p[i] == null || y !== y) {
@@ -72,7 +70,7 @@ export default {
         // indicator (let's say EMA),
         // just create a new overlay with the same type:
         // e.g. use_for() { return ['EMA'] }.
-        use_for() { return ['Spline', 'EMA', 'SMA'] },
+        use_for() { return ['Spline', 'EMA', 'TEMA', 'SMA'] },
 
         // Colors for the legend, should have the
         // same dimention as a data point (excl. timestamp)
@@ -91,6 +89,7 @@ export default {
             return this.sett.color || this.COLORS[n]
         },
         data_index() {
+            // TODO: we should use same property for styleIndex, eg currently candles/volbars assume optional style is @ index 6
             return this.sett.dataIndex || 1
         },
         // Don't connect separate parts if true
