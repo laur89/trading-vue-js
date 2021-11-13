@@ -21,7 +21,7 @@ class WebWork {
         // URL.createObjectURL
         window.URL = window.URL || window.webkitURL
         let data = lz.decompressFromBase64(worker_data[0])
-        var blob
+        let blob
         try {
             blob = new Blob([data], {type: 'application/javascript'})
         } catch (e) {

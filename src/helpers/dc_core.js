@@ -59,12 +59,13 @@ export default class DCCore extends DCEvents {
         // Remove ohlcv cuz we have Data v1.1^
         // TODO: remove this line at one point once old data format is fully deprecated:
         delete this.data.ohlcv
+
         if (!('datasets' in this.data)) {
             this.tv.$set(this.data, 'datasets', [])
         }
 
         // Init dataset proxies
-        for (var ds of this.data.datasets) {
+        for (const ds of this.data.datasets) {
             if (!this.dss) this.dss = {}
             this.dss[ds.id] = new Dataset(this, ds)
         }
@@ -81,7 +82,7 @@ export default class DCCore extends DCEvents {
      * @returns {Promise<void>}
      * @private
      */
-    _pauseRangeLogic = async () => {
+    async _pauseRangeLogic() {
         await Utils.pause(500)
         while (this.dynamicData.cursorLock) {
             await Utils.pause(50)
@@ -402,13 +403,19 @@ export default class DCCore extends DCEvents {
             ov.id = `${onOrOffChart}.${ov.type}${i}`
             if (!ov.name) ov.name = ov.type + ` ${i}`
             if (!ov.settings) this.tv.$set(ov, 'settings', {})
+            return i
         }
 
         this.data.chart.id = `chart.${this.data.chart.type}`
 
         let typeCounts = {}
+        this.gldc = {}
+        this.dcgl = {}
         for (const ov of this.data.onchart) {
-            process(ov, 'onchart')
+            let i = process(ov, 'onchart')
+            // grid_id,layer_id => DC id mapping
+            this.gldc[`g0_${ov.type}_${i}`] = ov.id
+            this.dcgl[ov.id] = `g0_${ov.type}_${i}`
         }
 
         typeCounts = {}  // reset
@@ -456,7 +463,7 @@ export default class DCCore extends DCEvents {
 
     update_tick(data) {
         let ohlcv = this.data.chart.data
-        let last = ohlcv[ohlcv.length - 1]
+        let last = ohlcv[ohlcv.length - 1]  // TODO!!: our data is reversed, should the 'last' definition be [0]?
         let tick = data['price']
         let volume = data['volume'] || 0
         let tf = this.tv.$refs.chart.interval_ms
@@ -469,7 +476,7 @@ export default class DCCore extends DCEvents {
 
         let t = now >= t_next ? (now - now % tf) : last[0]
 
-        if ((t >= t_next || !ohlcv.length) && tick !== undefined) {
+        if (tick !== undefined && (t >= t_next || !ohlcv.length)) {
             // And new zero-height candle
             let nc = [t, tick, tick, tick, tick, volume]
             this.agg.push('ohlcv', nc, tf)
@@ -491,16 +498,20 @@ export default class DCCore extends DCEvents {
 
     // Updates all overlays with given values.
     update_overlays(data, t, tf) {
-        for (var k in data) {
+        for (let k in data) {
             if (k === 'price' || k === 'volume' ||
                 k === 'candle' || k === 't') {
+                continue
+            }
+            else if (k.includes('datasets.')) {
+                this.agg.push(k, data[k], tf)
                 continue
             }
 
             const i = data[k]
             const val = Array.isArray(i) ? i : [i]
             if (!k.includes('.data')) k += '.data'  // TODO: can we replace !includes() w/ !endsWith()?
-            this.agg.push(k, [t, ...val], tf)
+            this.agg.push(k, [t, ...val], tf)  // note in nova2 this line used to be:   this.merge(k, [[t, ...val]])
         }
     }
 
@@ -524,7 +535,7 @@ export default class DCCore extends DCEvents {
                 break
             case 'datasets':
                 result = this.query_search(query, tuple)
-                for (var r of result) {
+                for (let r of result) {
                     if (r.i === 'data') {
                         r.v = this.dss[r.p.id].data()
                     }
@@ -572,7 +583,7 @@ export default class DCCore extends DCEvents {
 
     query_search(query, [side, path = '', field]) {
 
-        let arr = this.data[side].filter(x => (
+        const arr = this.data[side].filter(x => (
             x.id === query ||
             (x.id && x.id.includes(path)) ||
             x.name === query ||
@@ -588,7 +599,7 @@ export default class DCCore extends DCEvents {
             }))
         }
 
-        return arr.map((x, idx) => ({
+        return arr.map((x, i) => ({
             p: this.data[side],
             i: this.data[side].indexOf(x),
             v: x

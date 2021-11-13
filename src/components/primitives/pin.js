@@ -182,12 +182,9 @@ export default class Pin {
     }
 
     hover() {
-        const x = this.x
-        const y = this.y
-
         return (
-            (x - this.mouse.x) * (x - this.mouse.x) +
-            (y - this.mouse.y) * (y - this.mouse.y)
+            (this.x - this.mouse.x) * (this.x - this.mouse.x) +
+            (this.y - this.mouse.y) * (this.y - this.mouse.y)
         ) < this.RADIUS_SQ
     }
 

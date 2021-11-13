@@ -55,7 +55,7 @@ export default class Line {
 
     // Collision function. x, y - mouse coord.
     make(p1, p2) {
-        let f = this.ray ?
+        const f = this.ray ?
             Math2.point2ray.bind(Math2) :
             Math2.point2line.bind(Math2)
         return (x, y) => {

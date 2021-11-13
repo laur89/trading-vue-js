@@ -6,12 +6,12 @@ import Canvas from '../mixins/canvas.js'
 
 export default {
     name: 'Botbar',
-    mixins: [Canvas],
     props: [
         'sub', 'layout', 'range', 'interval', 'cursor', 'colors', 'font',
         'width', 'height', 'rerender', 'tv_id', 'config', 'shaders',
         'timezone', 'gap_collapse'
     ],
+    mixins: [Canvas],
     mounted() {
         const el = this.$refs['canvas']
         this.renderer = new Botbar(el, this)

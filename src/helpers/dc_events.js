@@ -15,7 +15,7 @@ export default class DCEvents {
 
         // Listen to the web-worker events
         this.ww.onevent = e => {
-            for (var ctrl of this.tv.controllers) {
+            for (const ctrl of this.tv.controllers) {
                 if (ctrl.ww) ctrl.ww(e.data)
             }
             switch(e.data.type) {
@@ -47,7 +47,7 @@ export default class DCEvents {
                     this.tv.$emit('signal', e.data.data)
                     break
             }
-            for (var ctrl of this.tv.controllers) {
+            for (const ctrl of this.tv.controllers) {
                 if (ctrl.post_ww) ctrl.post_ww(e.data)
             }
         }
@@ -111,7 +111,7 @@ export default class DCEvents {
         let delta = {}
         let changed = false
 
-        for (var i = 0; i < values.length; i++) {
+        for (let i = 0; i < values.length; i++) {
             let n = values[i]
             let arr = prev.filter(x => x.v === n.v)
             if (!arr.length && n.p.settings.$props) {
@@ -195,7 +195,7 @@ export default class DCEvents {
             if (!s.$uuid) s.$uuid = `${obj.type}-${Utils.uuid2()}`
             args[0].uuid = s.$uuid
             args[0].sett = s
-            for (var k in props || {}) {
+            for (let k in props || {}) {
                 let proto = props[k]
                 if (s[k] !== undefined) {
                     proto.val = s[k] // use the existing val
@@ -212,7 +212,7 @@ export default class DCEvents {
             }
             // Remove old props (dropped by the current exec)
             if (s.$props) {
-                for (var k in s) {
+                for (let k in s) {
                     if (s.$props.includes(k) && !(k in props)) {
                         delete s[k]
                     }
@@ -269,7 +269,7 @@ export default class DCEvents {
     modify_overlay(upd) {
         let obj = this.get_overlay(upd)
         if (obj) {
-            for (var k in upd.fields || {}) {
+            for (let k in upd.fields || {}) {
                 if (typeof obj[k] === 'object') {
                     this.merge(`${upd.uuid}.${k}`, upd.fields[k])
                 } else {
@@ -293,7 +293,7 @@ export default class DCEvents {
 
     set_loading(flag) {
         let skrr = this.get('.').filter(x => x.settings.$props)
-        for (var s of skrr) {
+        for (let s of skrr) {
             this.merge(`${s.id}`, { loading: flag })
         }
     }
@@ -321,7 +321,7 @@ export default class DCEvents {
         // TODO: tool state finished?
         this.object_selected([])
         // Remove the previous RangeTool
-        let rem = () => this.get('RangeTool')
+        const rem = () => this.get('RangeTool')
             .filter(x => x.settings.shiftMode)
             .forEach(x => this.del(x.id))
         if (this.data.tool && this.data.tool !== 'Cursor' &&
@@ -399,7 +399,7 @@ export default class DCEvents {
         const settings = args[0]
         delete settings.id
 
-        //const grid_id = args[1]  // TODO var not used
+        //const grid_id = args[1]  // TODO unused var
         this.merge(`${args[3]}.settings`, settings)
     }
 
@@ -422,7 +422,7 @@ export default class DCEvents {
         }
         this.tv.$set(this.data, 'selected', null)
 
-        if (args.length === 0) return
+        if (!args.length) return
 
         this.tv.$set(this.data, 'selected', args[2])
         this.merge(`${args[2]}.settings`, {
@@ -456,7 +456,7 @@ export default class DCEvents {
         this.get('.').forEach(x => {
             if (x.settings.$synth) this.del(`${x.id}`)
         })
-        for (var ov of data) {
+        for (let ov of data) {
             let obj = this.get_one(`${ov.id}`)
             if (obj) {
                 this.tv.$set(obj, 'loading', false)
@@ -464,12 +464,12 @@ export default class DCEvents {
                 obj.data = ov.data
             }
             if (!ov.new_ovs) continue
-            for (var id in ov.new_ovs.onchart) {
+            for (let id in ov.new_ovs.onchart) {
                 if (!this.get_one(`onchart.${id}`)) {
                     this.add('onchart', ov.new_ovs.onchart[id])
                 }
             }
-            for (var id in ov.new_ovs.offchart) {
+            for (let id in ov.new_ovs.offchart) {
                 if (!this.get_one(`offchart.${id}`)) {
                     this.add('offchart', ov.new_ovs.offchart[id])
                 }
@@ -479,7 +479,7 @@ export default class DCEvents {
 
     // Push overlay updates from the web-worker
     on_overlay_update(data) {
-        for (var ov of data) {
+        for (let ov of data) {
             if (!ov.data) continue
             let obj = this.get_one(`${ov.id}`)
             if (obj) {

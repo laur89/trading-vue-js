@@ -1,7 +1,6 @@
 
 import IndexedArray from 'arrayslicer'
 import Const from './constants';
-const { WKD_GAP_DURATION } = Const
 
 export default {
 
@@ -120,6 +119,8 @@ export default {
 
     // Checks if the ohlcv data is changed (given the new
     // and old/previous dataset values)
+    // NOTE: custom method
+
     // TODO: remove old datatype support once old format is deprecated!
     // TODO: always returns false??
     data_changed(n, p) {
@@ -140,7 +141,7 @@ export default {
         let min = Infinity
         ohlcv.slice(0, len).forEach((x, i) => {
             const diff = ohlcv[i+1][0] - x[0]
-            if (diff === diff && diff < min) min = diff
+            if (diff === diff && diff < min) min = diff  // TODO: what's diff===diff check for? to allow for cases when diff=NaN?
         })
         // This saves monthly chart from being awkward
         if (min >= Const.MONTH && min <= Const.DAY * 30) {
@@ -155,11 +156,13 @@ export default {
     },
 
     // Fast filter. Really fast, like 10X
+    // TODO!!: note during nova2 days, this method retunred different dimension, + we had pretty heavy customisation
+    //         guess will have to look up the callers and what they do w/ data
     fast_filter(arr, t1, t2) {
-        if (!arr.length) return [arr, undefined]
+        if (arr.length === 0) return [arr, undefined]
         try {
-// TODO: we used to reverse!!:  return new [IndexedArray(arr, '0').getRange(t1, t2).reverse()];
-            let ia = new IndexedArray(arr, "0")
+            // TODO!!!!!!!!: nova2 used to reverse!!:  return new [IndexedArray(arr, '0').getRange(t1, t2).reverse()];
+            let ia = new IndexedArray(arr, '0')
             let res = ia.getRange(t1, t2)
             let i0 = ia.valpos[t1].next
             return [res, i0]
@@ -173,7 +176,7 @@ export default {
     },
 
     // Fast filter (index-based)
-    fast_filter_i(arr, t1, t2) {
+    fast_filter_i_UPSTREAM(arr, t1, t2) {
         if (!arr.length) return [arr, undefined]
         let i1 =  Math.floor(t1)
         if (i1 < 0) i1 = 0
@@ -219,7 +222,7 @@ export default {
 
     // Nearest indexes (left and right)
     fast_nearest(arr, t1) {
-        const ia = new IndexedArray(arr, '0').fetch(t1)
+        const ia = new IndexedArray(arr, '0').fetch(t1)  // TODO confirm fetch() still returns ia instance reference
         return [ia.nextlow, ia.nexthigh]
     },
 
@@ -286,11 +289,19 @@ export default {
         return {start, end, gaps, delta, data};
     },
 
+    /**
+     * Note this method isn't called for gap_collapse=3
+     * @param gap_delta
+     * @param interval
+     * @param gap_collapse_mode
+     * @returns {boolean}
+     * @private
+     */
     _is_gap(gap_delta, interval, gap_collapse_mode) {
         if (gap_collapse_mode === 2) {
             return gap_delta > interval;  // in gap_collapse=2 mode we collapse _all_ gaps
         } else {
-            return gap_delta > WKD_GAP_DURATION;  // in gap_collapse=1 mode, we explicitly define what duration qualifies as a collapsable gap
+            return gap_delta > Const.WKD_GAP_DURATION;  // in gap_collapse=1 mode, we explicitly define what duration qualifies as a collapsable gap
         }
     },
 
@@ -303,9 +314,13 @@ export default {
      * should be resolved in subset() on-demand, and for the _estimated_
      * range only; if it's done for the full data-set as now,
      * then 1mil+ datapoint sets will likely start slowing things down.
+     * Then again, if we only ever load ~10k or so datapoints at a time,
+     * then this sure is simpler.
+     * TODO2: consider offloading this workload to the backend.
      *
      * @param data our main chart dataset (full)
      * @param interval
+     * @param gap_collapse_mode
      * @returns {[gaps]}
      */
     resolve_gaps(data, interval, gap_collapse_mode) {
@@ -616,47 +631,6 @@ export default {
         }
     },
 
-
-
-    // sanitize function argument;
-    // return the given arg if it's function, else null
-    get_fun_or_null(f) {
-        return typeof f === 'function' ? f : null
-    },
-
-    is_promise(prom) {
-        return prom !== null && typeof prom === 'object' && typeof prom.then === 'function'
-    },
-
-    /**
-     * Create & return a countdown latch.
-     * @param count
-     */
-    create_latch(count) {
-        return {
-            check: () => --count === 0
-        };
-    },
-
-    /**
-     * Map given timestamp {@code t} to x-coordinate in our current view.
-     * @param t
-     * @param range
-     * @param spacex  full width (px) of our current view where candles can be drawn.
-     * @returns {number} x coord corresponding to input time.
-     */
-    t2screen(t, range, spacex) {
-        if (range.gaps !== null) {
-            for (let i = range.gaps.length-1; i >= 0; i--) {
-                const gap = range.gaps[i]
-                if (t >= gap.end) t -= gap.delta
-            }
-        }
-
-        return (t - range.start) * spacex / range.delta;
-    },
-
-
     // Detect index shift between the main data sub
     // and the overlay's sub (for IB-mode)
     index_shift(sub, data) {
@@ -664,16 +638,16 @@ export default {
         // Find the second timestamp (by value)
         if (!data.length) return 0
         let first = data[0][0]
-        let second
+        let second, i
 
-        for (var i = 1; i < data.length; i++) {
+        for (i = 1; i < data.length; i++) {
             if (data[i][0] !== first) {
                 second = data[i][0]
                 break
             }
         }
 
-        for (var j = 0; j < sub.length; j++) {
+        for (let j = 0; j < sub.length; j++) {
             if (sub[j][0] === second) {
                 return j - i
             }
@@ -709,7 +683,7 @@ export default {
     uuid(temp = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx') {
         return temp
             .replace(/[xy]/g, c => {
-            var r = Math.random() * 16 | 0, v = c == 'x' ?
+            const r = Math.random() * 16 | 0, v = c === 'x' ?
                 r :
                 (r & 0x3 | 0x8)
             return v.toString(16)
@@ -761,7 +735,7 @@ export default {
 
         let name = ov.name
 
-        for (var k in ov.settings || {}) {
+        for (const k in ov.settings || {}) {
             let val = ov.settings[k]
             let reg = new RegExp(`\\$${k}`, 'g')
             name = name.replace(reg, val)
@@ -791,6 +765,50 @@ export default {
         document instanceof w.DocumentTouch))))
         (typeof window !== 'undefined' ? window : {}),
 
+
+
+
+
+    // sanitize function argument;
+    // return the given arg if it's function, else null
+    get_fun_or_null(f) {
+        return typeof f === 'function' ? f : null
+    },
+
+    is_promise(prom) {
+        return prom !== null && typeof prom === 'object' && typeof prom.then === 'function'
+    },
+
+    /**
+     * Create & return a countdown latch.
+     * @param count
+     */
+    create_latch(count) {
+        return {
+            check: () => --count === 0
+        };
+    },
+
+    /**
+     * NOTE: custom method
+     *
+     * Map given timestamp {@code t} to x-coordinate in our current view.
+     * @param t
+     * @param range
+     * @param spacex  full width (px) of our current view where candles can be drawn.
+     * @returns {number} x coord corresponding to input time.
+     */
+    t2screen(t, range, spacex) {
+        if (range.gaps !== null) {
+            for (let i = range.gaps.length-1; i >= 0; i--) {
+                const gap = range.gaps[i]
+                if (t >= gap.end) t -= gap.delta
+            }
+        }
+
+        return (t - range.start) * spacex / range.delta;
+    },
+
     /**
      * Calculate how many datapoints/candles fit in our current
      * view based on given params.
@@ -805,6 +823,8 @@ export default {
 
     /**
      * TODO: fast_f nova
+     * NOTE: custom method
+     *
      * @param arr
      * @param range
      * @param movement

@@ -6,12 +6,12 @@ import Canvas from '../mixins/canvas.js'
 
 export default {
     name: 'Sidebar',
-    mixins: [Canvas],
     props: [
         'sub', 'layout', 'range', 'interval', 'cursor', 'colors', 'font',
         'width', 'height', 'grid_id', 'rerender', 'y_transform', 'tv_id',
         'config', 'shaders'
     ],
+    mixins: [Canvas],
     mounted() {
         const el = this.$refs['canvas']
         this.renderer = new Sidebar(el, this)

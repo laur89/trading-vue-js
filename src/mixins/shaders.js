@@ -9,7 +9,7 @@ export default {
                 if (prev) this.shaders = this.shaders.filter(
                     x => x.owner !== prev.id
                 )
-                for (var Shader of skin.shaders) {
+                for (const Shader of skin.shaders) {
                     let shader = new Shader()
                     shader.owner = skin.id
                     this.shaders.push(shader)

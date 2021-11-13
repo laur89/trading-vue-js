@@ -40,13 +40,13 @@ export default class Price {
         this.shader = true
     }
 
-    // Regular draw call for overaly
+    // Regular draw call for overlay
     draw(ctx) {
         if (!this.comp.$props.meta.last) return
         if (!this.shader) this.init_shader()
 
-        let layout = this.comp.$props.layout
-        let last = this.comp.$props.last
+        const layout = this.comp.$props.layout
+        const last = this.comp.$props.last
 
         const dir = last[4] >= last[1]
         const color = dir ? this.green() : this.red()
@@ -67,7 +67,10 @@ export default class Price {
         if (!this.comp.data.length) return undefined
 
         let layout = this.comp.$props.layout
-        let last = this.comp.data[this.comp.data.length - 1]
+
+        // TODO!!: difference to upstream due to data reversal!
+        //let last = this.comp.data[this.comp.data.length - 1]
+        let last = this.comp.data[0]
         let y = layout.$2screen(last[4])
         //let cndl = layout.c_magnet(last[0])
         return {

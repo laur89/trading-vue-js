@@ -67,11 +67,11 @@ export default class Grid {
                 r: Object.assign({}, this.range),
                 o: tfrm ?
                     (tfrm.offset || 0) : 0,
-                y_r: tfrm && tfrm.range ?
-                    Object.assign({}, tfrm.range) : undefined,
+                y_r: tfrm && Array.isArray(tfrm.range) ?
+                    tfrm.range.slice(0) : undefined,
                 B: this.layout.B,
                 t0: Utils.now(),
-                compound: 0,  // compounding tally of our x-axis movement from the position where panstart stared from
+                compound: 0,  // compounding tally of our x-axis movement from the position where given panstart started from
             }
             this.comp.$emit('cursor-changed', {
                 grid_id: this.id,
@@ -102,7 +102,7 @@ export default class Grid {
         })
 
         mc.on('panend', event => {
-            if (Utils.is_mobile && this.drag) {
+            if (Utils.is_mobile && this.drag !== null) {
                 this.pan_fade(event)
             }
             this.drag = null
@@ -177,8 +177,6 @@ export default class Grid {
 
     mouseup(event) {
         this.drag = null
-        //this.pinch = null
-
         this.comp.$emit('cursor-locked', false)
         this.propagate('mouseup', event)
     }
@@ -235,7 +233,7 @@ export default class Grid {
 
     pan_fade(event) {
         let dt = Utils.now() - this.drag.t0
-        let dx = this.range[1] - this.drag.r[1]
+        let dx = this.range.end - this.drag.r.end  // TODO unconfirmed if works, upstream had "this.range[1] - this.drug.r[1]"
         let v = 42 * dx / dt
         let v0 = Math.abs(v * 0.01)
         if (dt > 500) return
@@ -245,9 +243,9 @@ export default class Grid {
             if (Math.abs(v) < v0) {
                 self.stop()
             }
-            this.range[0] += v
-            this.range[1] += v
-            this.change_range()
+            //this.range.start += v
+            //this.range.end += v
+            this.change_range(v, v)
         })
     }
 
@@ -295,9 +293,9 @@ export default class Grid {
                 if (!l.display) return
                 this.ctx.save()
                 const r = l.renderer
-                if (r.hasOwnProperty('pre_draw') && typeof r.pre_draw === 'function') r.pre_draw(this.ctx)
+                if (r.hasOwnProperty('pre_draw')) r.pre_draw(this.ctx)
                 r.draw(this.ctx)
-                if (r.hasOwnProperty('post_draw') && typeof r.post_draw === 'function') r.post_draw(this.ctx)
+                if (r.hasOwnProperty('post_draw')) r.post_draw(this.ctx)
                 this.ctx.restore()
             })
 
@@ -372,7 +370,7 @@ export default class Grid {
         event.deltaX = event.deltaX || Utils.get_deltaX(event)
         event.deltaY = event.deltaY || Utils.get_deltaY(event)
 
-        if (event.deltaX !== 0) {
+        if (Math.abs(event.deltaX) > 0) {
             this.trackpad = true
             if (Math.abs(event.deltaX) >= Math.abs(event.deltaY)) {
                 delta *= 0.1
@@ -384,6 +382,8 @@ export default class Grid {
 
         delta = Utils.smart_wheel(delta)
 
+        let c1 = 0, c2 = 0
+
         // TODO: mouse zooming is a little jerky,
         // needs to follow f(mouse_wheel_speed) and
         // if speed is low, scroll should be slower
@@ -394,27 +394,26 @@ export default class Grid {
         let tl = this.comp.config.ZOOM_MODE === 'tl'
         if (event.originalEvent.ctrlKey || tl) {
             let offset = event.originalEvent.offsetX
-            let diff_x = offset / (this.canvas.width-1) * diff
-            let diff_y = diff - diff_x
-            this.change_range(-diff_x, diff_y)
+            let diff1 = offset / (this.canvas.width-1) * diff
+            let diff2 = diff - diff1
+            c1 = -diff1
+            c2 = diff2
         } else {
-            this.change_range(-diff)
+            c1 = -diff
         }
 
-        // TODO: this is added in upstream... unsure if needed for us:
-        /*
         if (tl) {
             let offset = event.originalEvent.offsetY
             let diff1 = offset / (this.canvas.height-1) * 2
             let diff2 = 2 - diff1
-            let z = diff / (this.range[1] - this.range[0])
+            let z = diff / (this.range.end - this.range.start)
             //rezoom_range(z, diff_x, diff_y)
-            this.comp.$emit('rezoom-range', {
+            this.comp.$emit('rezoom-range', {    // TODO: this is from upstream... rezoom_range() _might_ not be ok due to our range being an object... but maybe works
                 grid_id: this.id, z, diff1, diff2
             })
         }
 
-        this.change_range() */
+        this.change_range(c1, c2)
     }
 
     /**
@@ -427,15 +426,9 @@ export default class Grid {
         const ls = !!this.layout.grid.logScale
         let range = null
 
-            let d$ = this.layout.$_hi - this.layout.$_lo
-            d$ *= (this.drag.y - y) / this.layout.height
-            const offset = this.drag.o + d$
-
-        let ls = this.layout.grid.logScale
-
         if (ls && this.drag.y_r) {
             let dy = this.drag.y - y
-            var range = this.drag.y_r.slice()
+            range = this.drag.y_r.slice(0)
             range[0] = math.exp((0 - this.drag.B + dy) /
                 this.layout.A)
             range[1] = math.exp(
@@ -443,8 +436,12 @@ export default class Grid {
                 this.layout.A)
         }
 
-        if (this.drag.y_r && this.$p.y_transform &&
-            !this.$p.y_transform.auto) {
+        if (this.$p.y_transform && !this.$p.y_transform.auto && this.drag.y_r) {
+
+            let d$ = this.layout.$_hi - this.layout.$_lo
+            d$ *= (this.drag.y - y) / this.layout.height
+            const offset = this.drag.o + d$
+
             this.comp.$emit('sidebar-transform', {
                 grid_id: this.id,
                 range: ls ? (range || this.drag.y_r) : [
@@ -460,13 +457,17 @@ export default class Grid {
         this.drag.compound = dt_from_starting_position
     }
 
+
+    // TODO: never tested pinch, unsure if the params we send to change_range() are ok
+    // mainly because upstream didn't modify range[0] += (ie increment) bu range[0] = (ie setting absolute new value).
+    // you might want to see how we solved the delta-range calculation in mousedrag() above
     pinchzoom(scale) {
 
         if (scale > 1 && this.data.length <= this.MIN_ZOOM) return
         if (scale < 1 && this.data.length > this.MAX_ZOOM) return
 
         const t = this.pinch.t
-        const nt = t * 1 / scale
+        const nt = t * 1 / scale  // TODO what's *1 about?
 
         const dt = (nt - t) * 0.5
         this.change_range(-dt, dt)
@@ -517,7 +518,7 @@ export default class Grid {
     // Propagate mouse event to overlays
     propagate(name, event) {
         for (const layer of this.overlays) {
-            if (layer.renderer.hasOwnProperty(name) && typeof layer.renderer[name] === 'function') {
+            if (layer.renderer.hasOwnProperty(name)) {
                 layer.renderer[name](event)
             }
 

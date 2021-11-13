@@ -32,14 +32,14 @@ class Overlay1 {
 
                 // Explicit update otherwise there will
                 // an auto-update before the current update() call
-                let v0 = ind1.update(12)
+                // let v0 = ind1.update(12)  // TODO: unused var
                 // get value of SomeIndicator1
-                v5 = ind1[5]
+                v5 = ind1[5]  // TODO: unused var?? v5 _is_ referenced by dc_calc_syntax2.js though... unsure how all this fits together
 
                 ta_lib.some_f()
 
                 let sum = close[0]
-                for (var i = 1; i < length; i++) {
+                for (let i = 1; i < length; i++) {
                     sum = sum + nz(close[i])
                 }
                 return sum / length // Returns the last value

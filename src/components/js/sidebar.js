@@ -23,7 +23,7 @@ export default class Sidebar {
     }
 
     listeners() {
-        let mc = this.mc = new Hammer.Manager(this.canvas)
+        const mc = this.mc = new Hammer.Manager(this.canvas)
         mc.add(new Hammer.Pan({
             direction: Hammer.DIRECTION_VERTICAL,
             threshold: 0
@@ -238,7 +238,7 @@ export default class Sidebar {
             // Use old mapping to get a new range
             let f = y => math.exp((y - this.drug.B) / this.drug.A)
 
-            let copy = range.slice()
+            // let copy = range.slice()  // TODO: unused var
             range[0] = f(new_hi)
             range[1] = f(new_lo)
 

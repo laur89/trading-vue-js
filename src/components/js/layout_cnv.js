@@ -1,4 +1,4 @@
-// Claculates postions and sizes for candlestick
+// Calculates positions and sizes for candlestick
 // and volume bars for the given subset of data
 
 import Utils from '../../stuff/utils.js'
@@ -72,7 +72,7 @@ export function layout_vol(self) {
 
     const volume = []
 
-    // Detect data second dimention size:
+    // Detect data second dimension size:
     const dim = sub[0] ? sub[0].length : 0
 
     // Support special volume data (see API book), or OHLCV
@@ -91,7 +91,7 @@ export function layout_vol(self) {
     const splitter = px_step2 > 5 ? 1 : 0
     let prev = null
 
-    // A & B are current chart tranformations:
+    // A & B are current chart transformations:
     // A === scale,  B === Y-axis shift
     for (let i = 0; i < sub.length; i++) {
         const p = sub[i]
@@ -121,7 +121,7 @@ function new_interval(layout, $p, sub) {
     // Subset interval against main interval
     let interval2, ratio
 
-    if ($p.gap_collapse !== 3) {
+    if ($p.gap_collapse !== 3) {  // TODO!!: another (!layout.ti_map.ib vs gap_collapse!==3) check!!!
         interval2 = $p.tf || Utils.detect_interval(sub)
         ratio = interval2 / $p.interval
     } else {

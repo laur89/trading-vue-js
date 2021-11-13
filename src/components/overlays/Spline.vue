@@ -41,14 +41,14 @@ export default {
             const data = this.$props.data
 
             if (!this.skip_nan) {
-                for (var p of data) {
+                for (const p of data) {
                     let x = layout.t2screen(p[0])
                     let y = layout.$2screen(p[i])
                     ctx.lineTo(x, y)
                 }
             } else {
-                var skip = false
-                for (var p of data) {
+                let skip = false
+                for (const p of data) {
                     let x = layout.t2screen(p[0])
                     let y = layout.$2screen(p[i])
                     if (p[i] == null || y !== y) {

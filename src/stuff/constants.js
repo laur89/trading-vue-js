@@ -48,7 +48,7 @@ const ChartConfig = {
     GRIDY: 47,       // px  // TODO: some coeff?
     BOTBAR: 28,      // // bottom bar height, px
     PANHEIGHT: 22,   // px
-    DEFAULT_LEN: 50, // candles
+    DEFAULT_LEN: 150, // candles;  TODO: upstream had value of 50
     MINIMUM_LEN: 5,  // candles,
     MIN_ZOOM: 25,    // candles
     MAX_ZOOM: 1000,  // candles,
@@ -111,5 +111,5 @@ export default {
     ChartConfig: ChartConfig,
     map_unit: MAP_UNIT,
     IB_TF_WARN,
-    WKD_GAP_DURATION: HOUR * 36,  // minimum data gap to qualify as weekend gap
+    WKD_GAP_DURATION: HOUR * 36,  // minimum data gap to qualify as weekend gap; only used in TODO which gap_collapse mode?
 }

@@ -13,6 +13,7 @@ export default class DataCube extends DCCore {
 
     constructor(data = {}, sett = {}) {
 
+        super()
         this.dynamicData = {
             loadForRange: null,  // can be either null or function
             sub: null,  // can be either null or function
@@ -50,7 +51,6 @@ export default class DataCube extends DCCore {
         }
         sett = Object.assign(def_sett, sett)
 
-        super()
         this.sett = sett
         this.data = data
         this.sett = SettProxy(sett, this.ww)
@@ -143,7 +143,7 @@ export default class DataCube extends DCCore {
         for (const obj of objects) {
 
             // Find current index of the field (if not defined)
-            let i = typeof obj.i !== 'number' ?
+            const i = typeof obj.i !== 'number' ?
                 obj.i : obj.p.indexOf(obj.v)
 
             if (i !== -1) {
@@ -162,52 +162,6 @@ export default class DataCube extends DCCore {
             return this.update_tick(data)
         }
     }
-
-
-
-/// TODO: old update() def; delete after post-merge state is verified:
-    // Update/append data point, depending on timestamp
-    update_OLD_DELETEME(data) {
-
-        const ohlcv = this.data.chart.data
-        const last = ohlcv[ohlcv.length - 1]
-        const tick = data['price']
-        const volume = data['volume'] || 0
-        const candle = data['candle']
-        const tf = Utils.parse_tf(this.data.chart.tf) || Utils.detect_interval(ohlcv)
-        const t_next = last[0] + tf
-        const now = Utils.now()
-        let t = now >= t_next ? (now - now % tf) : last[0]
-
-        if (candle) {
-            // Update the entire candle
-            if (candle.length >= 6) {
-                t = candle[0]
-                this.merge('chart.data', [candle])
-            } else {
-                this.merge('chart.data', [[t, ...candle]])
-            }
-        } else if (tick !== undefined && t >= t_next) {
-            // And new zero-height candle
-            this.merge('chart.data', [[
-                t, tick, tick, tick, tick, volume
-            ]])
-        } else if (tick !== undefined) {
-            // Update an existing one
-            last[2] = Math.max(tick, last[2])
-            last[3] = Math.min(tick, last[3])
-            last[4] = tick
-            last[5] += volume
-            this.merge('chart.data', [last])
-        }
-
-        this.update_overlays(data, t)
-        return t >= t_next
-    }
-
-
-
-
 
     // Lock overlays from being pulled by query_search
     // TODO: subject to review
@@ -251,17 +205,6 @@ export default class DataCube extends DCCore {
         }
 
         this.merge(query + '.settings', { display: false })
-    }
-
-
-
-    // TODO: onrange() I had deleted... is this needed or not???
-    // Set data loader callback
-    onrange(callback) {
-        this.loader = callback
-        setTimeout(() =>
-            this.tv.set_loader(callback ? this : null), 0
-        )
     }
 
 

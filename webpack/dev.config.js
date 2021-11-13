@@ -51,7 +51,7 @@ module.exports = (env, options) => ({
         before(app){
             app.get("/debug", function(req, res) {
                 try {
-                    let argv = JSON.parse(req.query.argv)
+                    const argv = JSON.parse(req.query.argv)
                     console.log(...argv)
                 } catch(e) {}
                 res.send("[OK]")

@@ -31,17 +31,20 @@ export default {
     mixins: [Canvas, UxList],
     components: { Crosshair, KeyboardListener },
     created() {
-        this._registry = {}  // overlay type ('Spline', 'EMA'...) to overlay implementation
+        // List of all possible overlays (builtin + custom)
+        this._list = [
+            Spline, Splines, Range, Trades, Channel, Segment,
+            Candles, Volume, Splitters, LineTool, RangeTool
+        ]
+        .concat(this.$props.overlays)
+        this._registry = {}  // overlay type ('Spline', 'EMA', 'TEMA'...) to overlay implementation
         const tools = [];
 
         // We need to know which components we will use.
         // Custom overlay components overwrite built-ins:
 
         // Loop over built-in & custom overlays:
-        [
-            Spline, Splines, Range, Trades, Channel, Segment,
-            Candles, Volume, Splitters, LineTool, RangeTool
-        ].concat(this.$props.overlays).forEach(ol => {
+        this._list.forEach(ol => {
             const use_for = ol.methods.use_for();
             if (ol.methods.tool) tools.push({
                 use_for,
@@ -140,9 +143,9 @@ export default {
             const comp_list = [], type_counts = {}
 
             for (const d of this.$props.data) {  // for each data block, be it onchart/offchart entity, or main candles
-                const comp = this._registry[d.type]
+                let comp = this._registry[d.type]
                 if (comp) {
-                    if(comp.methods.calc) {
+                    if (comp.methods.calc) {
                         comp = this.inject_renderer(comp)
                     }
                     comp_list.push({
@@ -192,14 +195,14 @@ export default {
         },
         // Replace the current comp with 'renderer'
         inject_renderer(comp) {
-            let src = comp.methods.calc()
+            const src = comp.methods.calc()
             if (!src.conf || !src.conf.renderer || comp.__renderer__) {
                 return comp
             }
 
             // Search for an overlay with the target 'name'
-            let f = this._list.find(x => x.name === src.conf.renderer)
-            if (!f) return comp
+            const f = this._list.find(x => x.name === src.conf.renderer)
+            if (f === undefined) return comp
 
             comp.mixins.push(f)
             comp.__renderer__ = src.conf.renderer
@@ -234,15 +237,15 @@ export default {
         overlays: {
             // Track changes in calc() functions
             handler: function(ovs) {
-                for (var ov of ovs) {
-                    for (var comp of this.$children) {
+                for (const ov of ovs) {
+                    for (const comp of this.$children) {
                         if (typeof comp.id !== 'string') continue
-                        let tuple = comp.id.split('_')
+                        const tuple = comp.id.split('_')
                         tuple.pop()
                         if (tuple.join('_') === ov.name) {
                             comp.calc = ov.methods.calc
                             if (!comp.calc) continue
-                            let calc = comp.calc.toString()
+                            const calc = comp.calc.toString()
                             if (calc !== ov.__prevscript__) {
                                 comp.exec_script()
                             }

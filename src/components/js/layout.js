@@ -7,7 +7,6 @@
 
 import GridMaker from './grid_maker.js'
 import Utils from '../../stuff/utils.js'
-import math from '../../stuff/math.js'
 import log_scale from './log_scale.js'
 
 /**
@@ -20,8 +19,7 @@ function Layout(_chart) {
 
     const {
         chart, sub, interval, range, ctx, layers_meta,
-        ti_map, $props: $p,
-        y_transforms: y_ts,
+        ti_map, $props: $p, y_transforms: y_ts,
     } = _chart
 
     const mgrid = chart.grid || {}
@@ -51,14 +49,14 @@ function Layout(_chart) {
 
         const offsub_len = offsub.length
         // TODO: 7? just a random value that looks ok?
-        let off_h = (2 * Math.sqrt(offsub_len) / 7) / (offsub_len === 0 ? 1 : offsub_len)  // = offchart height coefficient?
+        let off_h = (2 * Math.sqrt(offsub_len) / 7) / (offsub_len || 1)  // = offchart height coefficient?
 
         // single offchart grid height:
         off_h = Math.floor(height * off_h)
 
         // Main grid height
-        const m = [height - off_h * offsub_len]
-        return m.concat(Array(offsub_len).fill(off_h))
+        const m = height - off_h * offsub_len
+        return [m].concat(Array(offsub_len).fill(off_h))
     }
 
     /**
@@ -91,7 +89,7 @@ function Layout(_chart) {
         const vs = $p.config.VOLSCALE * $p.height / max_vol
         const vol_splitter = self.px_step > 5 ? 1 : 0
 
-        let hf_px_step = self.px_step * 0.5
+        const hf_px_step = self.px_step * 0.5
         let prev = null
 
         for (let i = 0; i < sub.length; i++) {
@@ -102,7 +100,7 @@ function Layout(_chart) {
                 case 3:
                     mid_x = self.startx - self.px_step * i;
                     break;
-                default:  // including gap_collapse v1
+                default:  // including gap_collapse v1; // TODO: shouldnt collapse v1 be deprecated? unsure tho...
                     mid_x = Utils.t2screen(p[0], range, self.spacex)
 // TODO: upstream has above line as:  mid = self.t2screen(p[0]) + 0.5
                     break;
@@ -116,7 +114,7 @@ function Layout(_chart) {
                 h: Math.floor(p[2] * self.A + self.B),
                 l: Math.floor(p[3] * self.A + self.B),
                 c: Math.floor(p[4] * self.A + self.B),
-                raw: p,  // raw candle entity
+                raw: p  // raw candle entity
             })
 
             // resolve volume-bar coords:
@@ -125,8 +123,9 @@ function Layout(_chart) {
                 case 1:
                 case 2:
                 case 3:
-                    x1 = prev || Math.floor(mid_x + self.px_step * 0.5)
-                    x2 = Math.floor(mid_x - self.px_step * 0.5) //- 0.5
+                    // TODO: note in this block we don't reset prev arg; how come?
+                    x1 = prev || Math.floor(mid_x + hf_px_step)
+                    x2 = Math.floor(mid_x - hf_px_step) // upstream logic also deducts 0.5, ie:  - 0.5
                     prev = x2 - vol_splitter
                     break;
                 default:  // the old, pre-gap collapsing logic; TODO: deprecate?
@@ -146,7 +145,7 @@ function Layout(_chart) {
                 x2,
                 h: p[5] * vs,
                 green: p[4] >= p[1],  // check if C equal-or-larger than O
-                raw: p
+                raw: p  // raw candle entity
             })
         }
     }

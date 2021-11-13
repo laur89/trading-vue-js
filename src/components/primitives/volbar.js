@@ -9,6 +9,8 @@ export default class VolbarExt {
         this.draw(data)
     }
 
+    // TODO!! do not all the primitive types drawing logic have issues
+    // because our data being reversed, and eg here having "data.x2 - data.x1" - is x2 always > x1?
     draw(data) {
         const y0 = this.$p.layout.height
         const w = data.x2 - data.x1

@@ -23,8 +23,9 @@ module.exports = class WWPlugin {
                     //data = minify(data, { sourceMap: false }).code
                     data = lz.compressToBase64(data)
                     let json = JSON.stringify([data])
+                    let prev;
                     try {
-                        var prev = fs.readFileSync(PATH + 'ww$$$.json')
+                        prev = fs.readFileSync(PATH + 'ww$$$.json')
                     } catch(e) {}
 
                     // Write new compiled ww only if the src changed
@@ -33,9 +34,9 @@ module.exports = class WWPlugin {
                     }
                 })
 
-                }).on("error", (err) => {
-                    console.log("Error: " + err.message)
-                })
+            }).on("error", (err) => {
+                console.log("WW_PLUGIN Error: " + err.message)
+            })
         })
     }
 }

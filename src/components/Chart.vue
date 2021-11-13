@@ -2,21 +2,21 @@
     <!-- Chart components combined together -->
     <div class="trading-vue-chart" :style="styles">
         <keyboard ref="keyboard"></keyboard>
+      <!--            @range-changed="range_changed"  // TODO: is it ok to have this guy replaced by @movement below? -->
         <grid-section v-for="(grid, i) in this._layout.grids"
             :key="grid.id" ref="sec"
             :common="section_props(i)"
-            :dc_legend_displayed="dc_legend_displayed"
             :grid_id="i"
+            :dc_legend_displayed="dc_legend_displayed"
             @register-kb-listener="register_kb"
             @remove-kb-listener="remove_kb"
-            @range-changed="range_changed"
+            @movement="movement_changed"
             @cursor-changed="cursor_changed"
             @cursor-locked="cursor_locked"
             @sidebar-transform="set_ytransform"
             @layer-meta-props="layer_meta_props"
             @custom-event="emit_custom_event"
             @legend-button-click="legend_button_click"
-            @movement="movement_changed"
             @dc-legend-button-click="on_dc_legend_button_click"
             >
         </grid-section>
@@ -42,8 +42,17 @@ import Const from '../stuff/constants.js'
 import IndexedArray from 'arrayslicer';
 
 
+const define_tf = d => {
+    if (d.hasOwnProperty('tf')) {
+        d.tf = Utils.parse_tf(d.tf)
+    } else if (d.data.length >= 2) {
+        d.tf = Utils.detect_interval(d.data);
+    }
+};
+
 export default {
     name: 'Chart',
+    // TODO!!: nova2 had 'ib' removed from props!:
     props: [
         'title_txt', 'data', 'width', 'height', 'font', 'colors',
         'overlays', 'tv_id', 'config', 'buttons', 'toolbar', 'ib',
@@ -63,7 +72,7 @@ export default {
         // Initial layout (All measurements for the chart)
         this.sub = this.subset(this.init_range())
         this.init_secondary_series_tf();
-        //Utils.overwrite(this.range, this.range) // Fix for IB mode
+        //Utils.overwrite(this.range, this.range) // Fix for IB mode  // note this line is uncommented in upstream
         this._layout = new Layout(this)
 
         // Updates current cursor values
@@ -77,7 +86,7 @@ export default {
             // Quick fix for IB mode (switch 2 next lines)
             // TODO: wtf?
             Object.assign(this.range, r)
-            //this.range = r;  //  TODO can we use?
+            //this.range = r;  //  TODO can we use instead of assigning r?
 
             this.update_layout()
             this.$emit('range-changed', r)
@@ -89,7 +98,11 @@ export default {
 
         goto(t) {
             this.subset(t)
+            // upstream has this instread:
+            //const dt = this.range[1] - this.range[0]
+            //this.range_changed([t - dt, t])
         },
+
         /**
          * TODO: shouldn't call range_changed here, we need to
          * define movement somehow and call subset() with it instead!
@@ -108,19 +121,20 @@ export default {
             if (this.cursor.scroll_lock && state) return
             this.cursor.locked = state
             if (this._hook_xlocked) this.ce('?x-locked', state)
+            this.$emit('cursor-locked', state)  // TODO!! added by laur, but the above line ('?x-locked'..) wasn't earlier... maybe our stuff is no more needed?
         },
 
         /**
          * Derive interval based on our data
          */
         calc_interval() {
-            let tf = Utils.parse_tf(this.forced_tf)
+            const tf = Utils.parse_tf(this.forced_tf)
             if (this.ohlcv.length < 2 && !tf) return
-            this.interval_ms = tf || Utils.parse_tf(this.chart.tf) || Utils.detect_interval(this.ohlcv)
-            this.interval = this.$props.ib || this.$props.gap_collapse === 3 ? 1 : this.interval_ms
+            this.interval_ms = tf || Utils.detect_interval(this.ohlcv)
+            this.interval = this.$props.gap_collapse === 3 ? 1 : this.interval_ms  // TODO!! good 'ol this.$props.ib vs gaps_collapse===3
 
             Utils.warn(
-                () => this.$props.ib && !this.chart.tf,
+                () => this.$props.ib && !this.chart.tf,  // TODO!! good 'ol this.$props.ib vs gaps_collapse===3
                 Const.IB_TF_WARN, Const.SECOND
             )
         },
@@ -130,16 +144,9 @@ export default {
          * if already not defined.
          * The reason we're doing this is that their timeframes may
          * be longer than the main chart data's.
+         * TODO!! after latest changes, is this method perhaps deprecated/not needed now?
          */
         init_secondary_series_tf() {
-            const define_tf = d => {
-                if (d.hasOwnProperty('tf')) {
-                    d.tf = Utils.parse_tf(d.tf)
-                } else if (d.data.length >= 2) {
-                    d.tf = Utils.detect_interval(d.data);
-                }
-            };
-
             for (const d of this.offchart) {
                 define_tf(d);
             }
@@ -155,7 +162,7 @@ export default {
             this.$set(this.y_transforms, s.grid_id, obj)
             this.update_layout()
             Object.assign(this.range, this.range)  // TODO: is this really needed?
-            //this.range = Object.assign({}, this.range);   //  TODO can we use?
+            //this.range = Object.assign({}, this.range);   //  TODO maybe use this instead above line if it's really needed?
         },
 
         /**
@@ -190,7 +197,7 @@ export default {
                 case 2:
                     return {
                         e: end,
-                        c: 2.5,  // leave bit more empty buffer space to the right
+                        c: 2.5,  // leave bit more empty buffer space to the right-hand side
                     };
                 case 3: {
                     const start = start_idx - this.interval * d
@@ -225,6 +232,7 @@ export default {
 
             switch (this.$props.gap_collapse) {
                 case 1: {
+                    // in this mode, only weekend gaps are collapsed; rest are left as-is
                     const { start, end, gaps, delta, data } = Utils.fast_f(  // TODO: previously start time had this.interval deducted; is that needed?
                         this.ohlcv,
                         this.range,
@@ -248,6 +256,7 @@ export default {
                     return data;
                 }
                 case 2: {
+                    // in this mode all gaps are collapsed; note we still go through the data and detect where the gaps are located
                     const { end, end_remainder, delta, data } = Utils.fast_f2(
                         this.ohlcv,
                         this.range,
@@ -280,7 +289,7 @@ export default {
 
                     return data;
                 }
-                case 3: {  // == IB mode, ie index-based mode
+                case 3: {  // == IB mode, ie index-based mode; TODO: is this used _only_ with renko data?
                     let { start_index, start, end, delta, data } = Utils.fast_filter_i(
                         this.ohlcv,
                         this.range,
@@ -289,7 +298,7 @@ export default {
 
                     if (Array.isArray(data) && data.length !== 0) {
                         this.sub_start = start_index;
-                        this.sub_start_i = data[0][6];  // TODO: '6' needs to be parametrized
+                        this.sub_start_i = data[0][6];  // TODO: '6' needs to be parametrized; actually should already be under incoming data settings, under... a key
                         this.ti_map = new TI(this, data);
                         data = this.ti_map.sub_i.reverse();  // note here's where we reverse the dataset in gap_collapse=3 mode!
                     } else {
@@ -330,10 +339,11 @@ export default {
                 config: this.$props.config,
                 buttons: this.$props.buttons,
                 meta: this.meta,
-                skin: this.$props.skin
+                skin: this.$props.skin,
+                gap_collapse: this.$props.gap_collapse,
             }
         },
-        overlay_subset(source, side) {
+        overlay_subset_ORIG_UPSTREAM_premerge(source, side) {
             return source.map((d, i) => {
                 let res = Utils.fast_filter(
                     d.data, this.ti_map.i2t_mode(
@@ -358,23 +368,33 @@ export default {
         },
 
         /**
-         * TODO this is our overlay_subset()... no idea how to marry this
-         * with the one above
-         *
+         * TODO!! unconfirmed... upstream had load of changes we don't quite understand.
+         *        more likely than not will need thinking and rework
+         * -------------
          * Get excerpt from given {@code source} (eg onchart/offchart)
          * candles for current {@code this.range}
          */
-        overlay_subset(source) {
-            return source.map(d => {
+        overlay_subset(source, side) {
+            return source.map((d, i) => {
                 let data;
-                if (this.$props.gap_collapse === 3) {
-                    data = this.ti_map.parse(Utils.fast_filter(
-                        d.data,
-                        this.ti_map.i2t(this.range.start - this.interval),
-                        this.ti_map.i2t(this.range.end)
-                        //this.ti_map.i2t(this.range.start - (d.tf || this.interval)),
-                        //this.ti_map.i2t(this.range.end + (d.tf || this.interval))
-                    ));
+                if (this.$props.gap_collapse === 3) {  // TODO!! good ol ib vs gap_collapse!
+                    // data = this.ti_map.parse(Utils.fast_filter(
+                    //     d.data,
+                    //     this.ti_map.i2t(this.range.start - this.interval),
+                    //     this.ti_map.i2t(this.range.end)
+                    //     //this.ti_map.i2t(this.range.start - (d.tf || this.interval)),
+                    //     //this.ti_map.i2t(this.range.end + (d.tf || this.interval))
+                    // ));
+                    // TODO!!: this block here has been modified to suite our range datatype,
+                    // but what about we using d.indexSrc and that new i2t_mode() fun???
+                    const res = Utils.fast_filter(
+                        d.data, this.ti_map.i2t_mode(
+                            this.range.start - this.interval,
+                            d.indexSrc
+                        ),
+                        this.ti_map.i2t_mode(this.range.end, d.indexSrc)
+                    )
+                    data = this.ti_map.parse(res[0] || [], d.indexSrc || 'map')
                 } else {
                     data = Utils.fast_filter(
                         d.data,
@@ -385,11 +405,15 @@ export default {
 
                 return {
                     type: d.type,
-                    name: d.name,
+                    name: Utils.format_name(d),
                     data,
+                    //data: this.ti_map.parse(res[0] || [], d.indexSrc || 'map'),     <-- upstream
                     settings: d.settings || this.settings_ov,
                     grid: d.grid || {},
-                    tf: d.tf, // Utils.parse_tf(d.tf)
+                    tf: d.tf, // upstream has: Utils.parse_tf(d.tf)
+                    i0: data[1],  // TODO!! does this work even for gap_collapse!=3 mode???
+                    loading: d.loading,
+                    last: (this.last_values[side] || [])[i]  // TODO!!: last - do we need to reverse something for our implementation?
                 }
             });
         },
@@ -399,7 +423,7 @@ export default {
         },
         init_range() {
             this.calc_interval()
-            return this.default_range()
+            return this.default_range()  // note upstream's default_range() didn't rertun anything, hence why _we_ return from this function here
         },
         layer_meta_props(d) {
             // TODO: check reactivity when layout is changed
@@ -426,7 +450,8 @@ export default {
         },
         update_layout(clac_tf = false) {
             if (clac_tf) this.calc_interval()
-            Utils.copy_layout(this._layout, new Layout(this))
+            const lay = new Layout(this)
+            Utils.copy_layout(this._layout, lay)
             if (this._hook_update) this.ce('?chart-update', lay)
         },
         legend_button_click(event) {
@@ -442,7 +467,7 @@ export default {
         },
         update_last_values() {
             const d = this.ohlcv
-            this.last_candle = d ? d[d.length - 1] : []
+            this.last_candle = d ? d[d.length - 1] : []  // TODO!!: upstream defaults to undefined instead of []
             this.last_values = { onchart: [], offchart: [] }
             this.onchart.forEach((x, i) => {
                 let d = x.data || []
@@ -513,6 +538,10 @@ export default {
         offchart() {
             return this.$props.data.offchart || []
         },
+        //filter() {  TODO: upstream's subset() called it
+        //    return this.$props.ib ?
+        //        Utils.fast_filter_i : Utils.fast_filter
+        //},
         styles() {
             const w = this.$props.toolbar ? this.$props.config.TOOLBAR : 0
             return { 'margin-left': `${w}px` }
@@ -524,7 +553,7 @@ export default {
                 activated: this.activated
             }
         },
-        forced_tf() {
+        forced_tf() {  // TODO!! this is a new field from upstream we likely should make more use of
             return this.chart.tf
         }
     },
@@ -574,6 +603,9 @@ export default {
             last_values: {},
             sub_start: undefined,
             activated: false,
+
+            sub_start_i: null,
+            ti_map: null,
             dc_legend_displayed: false,  // whether DC legend should be shown
 
         }
@@ -610,7 +642,7 @@ export default {
         },
         colors() {
             Object.assign(this.range, this.range)  // TODO: is this really necessary?
-            //this.range = Object.assign({}, this.range);  //  TODO can we use?
+            //this.range = Object.assign({}, this.range);  //  TODO can we use maybe this instead above line?
         },
         forced_tf(n, p) {
             this.update_layout(true)
@@ -632,25 +664,30 @@ export default {
                 }
 
 
+              /**
+               * endTimestamp
+               * @type {object|number|array|undefined}
+               */
                 const endTimestamp = this.sub.length === 0 ? this.init_range() : undefined;  // init_range() should be called first thing here!
                 this.init_secondary_series_tf();
 
-                // TODO: find a better solution thatn ohlcv.slice().reverse()!:
+                // TODO: find a better solution than ohlcv.slice().reverse()!:
+                // TODO2: why are we resolving gaps here, not in subset() where gap_collapse===1 logic is??
                 if (this.$props.gap_collapse === 1) {
                     Utils.overwrite(this.gaps, Utils.resolve_gaps(this.ohlcv.slice(0).reverse(), this.interval, this.$props.gap_collapse))
                 }
                 this.subset(endTimestamp);  // _always_ call subset in order to redraw when data changes, eg if data is lazy-loaded
 
-                // Fixes Infinite loop warn, when the subset is empty
-                // TODO: Consider removing 'sub' from data entirely
-                if (this.sub.length || sub.length) {
-                    Utils.overwrite(this.sub, sub)
-                }
-
                 // TODO: data changed detection not working?:
                 //window.console.log(`d changed?: ${Utils.data_changed(n, p)}`)
 
-                this.update_layout(Utils.data_changed(n, p))
+                // TODO!!: upstream has this: is this something new we should use instead of our utils.data_changed?: {
+                //let nw = this.data_changed()  // TODO what/where is this    this.data_changed()? is that new?
+                //this.update_layout(nw)
+                // }
+
+                const nw = Utils.data_changed(n, p)  // TODO!!: upstream used this method instead:  nw = this.data_changed()
+                this.update_layout(nw)
                 this.cursor.scroll_lock = !!n.scrollLock
                 if (n.scrollLock && this.cursor.locked) {
                     this.cursor.locked = false
