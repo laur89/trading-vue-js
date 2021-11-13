@@ -19,27 +19,23 @@ const MAX_ARR = Math.pow(2, 32)
 
 export default class TI {
 
-    constructor() {
+    constructor(params, res) {
 
-        this.ib = false
-    }
-
-    init(params, res) {
         let {
-            sub, interval, meta, $props:$p, interval_ms, sub_start, ib
+            /*sub, interval, meta, $props:$p, */interval_ms, sub_start, ib  // TODO!! unused vars
         } = params
 
         this.ti_map = []
         this.it_map = []
         this.sub_i = []
-        this.ib = ib
+        this.ib = ib // TODO!! at nova2 stage we had this line removed, ie whole this file didn't refer to ib
         this.sub = res
         this.ss = sub_start
         this.tf = interval_ms
-        let start = meta.sub_start
+        // let start = meta.sub_start // TODO!! unused var
 
         // Skip mapping for the regular mode
-        if (this.ib) {
+        if (this.ib) { // TODO!! this.ib vs gap_collapse===3 !!
             this.map_sub(res)
         }
     }
@@ -64,14 +60,14 @@ export default class TI {
     // TODO: parse() called 3 times instead of 2 for 'spx_sample.json'
     parse(data, mode) {
 
-        if (!this.ib || !this.sub[0] || mode === 'data') return data
+        if (!this.ib || !this.sub[0] || mode === 'data') return data  // TODO!! nova2 had !this.ib removed!
 
-        let res = []
+        const res = []
         let k = 0 // Candlestick index
 
         if (mode === 'calc') {
             let shift = Utils.index_shift(this.sub, data)
-            for (var i = 0; i < data.length; i++) {
+            for (let i = 0; i < data.length; i++) {
                 let _i = (this.ss + i)
                 let copy = [...data[i]]
                 copy[0] = _i + shift
@@ -83,15 +79,15 @@ export default class TI {
         // If indicator data starts after ohlcv, calc the first index
         if (data.length) {
             try {
-                let k1 = Utils.fast_nearest(this.sub, data[0][0])[0]
+                const k1 = Utils.fast_nearest(this.sub, data[0][0])[0]
                 if (k1 !== null && k1 >= 0) k = k1
             } catch(e) { }
         }
 
-        let t0 = this.sub[0][0]
-        let tN = this.sub[this.sub.length - 1][0]
+        const t0 = this.sub[0][0]
+        const tN = this.sub[this.sub.length - 1][0]
 
-        for (var i = 0; i < data.length; i++) {
+        for (let i = 0; i < data.length; i++) {
             let copy = [...data[i]]
             let tk = this.sub[k][0]
             let t = data[i][0]
@@ -129,6 +125,7 @@ export default class TI {
     // index => time
     i2t(i) {
 
+        // TODO!! nova2 had !this.ib removed
         if (!this.ib || !this.sub.length) return i // Regular mode
 
         // Discrete mapping
@@ -136,12 +133,12 @@ export default class TI {
         if (res !== undefined) return res
         // Linear extrapolation
         else if (i >= this.ss + this.sub_i.length) {
-            let di = i - (this.ss + this.sub_i.length) + 1
-            let last = this.sub[this.sub.length - 1]
+            const di = i - (this.ss + this.sub_i.length) + 1
+            const last = this.sub[this.sub.length - 1]
             return last[0] + di * this.tf
         }
         else if (i < this.ss) {
-            let di = i - this.ss
+            const di = i - this.ss
             return this.sub[0][0] + di * this.tf
         }
 
@@ -195,10 +192,10 @@ export default class TI {
 
         try {
             // Linear Interpolation
-            let i = Utils.fast_nearest(this.sub, t)
-            let tk = this.sub[i[0]][0]
-            let tk2 = this.sub[i[1]][0]
-            let k = (t - tk) / (tk2 - tk)
+            const i = Utils.fast_nearest(this.sub, t)
+            const tk = this.sub[i[0]][0]
+            const tk2 = this.sub[i[1]][0]
+            const k = (t - tk) / (tk2 - tk)
             return this.ss + i[0] + k * (i[1] - i[0])
         } catch(e) { }
 
@@ -227,7 +224,7 @@ export default class TI {
     // Used by tv.goto()
     gt2i(smth, ohlcv) {
         if (smth > MAX_ARR) {
-            let E = 0.1 // Fixes the arrayslicer bug
+            let E = 0.1 // Fixes the arrayslicer bug  // TODO!! what's this bug about?
             let [i1, i2] = Utils.fast_nearest(ohlcv, smth+E)
             if (typeof i1 === 'number') {
                 return i1

@@ -5,7 +5,7 @@ import math from '../../stuff/math.js'
 
 export default function(self, range) {
 
-    const ib = self.gap_collapse === 3;
+    const ib = self.gap_collapse === 3;  // TODO!! another self.ti_map.ib vs gap_collapse===3 check!!
     const r = self.spacex / range.delta;
     const ls = !!self.grid.logScale
 
@@ -14,7 +14,7 @@ export default function(self, range) {
         t2screen: t => {
             if (ib) t = self.ti_map.smth2i(t)
             return Utils.t2screen(t, range, self.spacex) - 0.5  // TODO: why -0.5?
-// TODO: upstream has this for above line:  return Math.floor((t - range.start) * r) - 0.5
+            // TODO: upstream has this for above line:  return Math.floor((t - range[0]) * r) - 0.5
         },
         // $ to screen coordinates
         $2screen: y => {
@@ -43,7 +43,7 @@ export default function(self, range) {
 
             if (range.gaps !== null) {
                 for (const gap of range.gaps) {
-                    if (t > gap.start) t += gap.delta  // t>start, _not_ t>= right?
+                    if (t > gap.start) t += gap.delta  // t>start, _not_ t>=, right?
                 }
             }
 

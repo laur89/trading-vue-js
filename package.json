@@ -52,7 +52,7 @@
     "ava": "^3.15.0",
     "babel-loader": "^8.2.2",
     "css-loader": "^3.6.0",
-    "eslint": "^7.21.0",
+    "eslint": "^7.30.0",
     "eslint-config-eslint": "^7.0.0",
     "eslint-plugin-vue": "^7.7.0",
     "html-webpack-plugin": "^5.3.1",

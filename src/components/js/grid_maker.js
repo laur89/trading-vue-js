@@ -30,7 +30,7 @@ function GridMaker(id, params, master_grid = null) {
         B: -1,  // TODO what is this?
         t_step: -1,  // time step at which to draw vertical grid lines at
         px_step: -1,  // candle step in px
-        xs: null,   // array of [x_coord, candle]
+        xs: null,   // array of [x_coord, candle, rank|interval]  // TODO: what's this new 3rd, interval|rank unit about
         ys: null,   // TODO
         $_step: null,  // grid lines' vertical/y step in px;
         $_hi: -1,  // max vertical range w/ the buffer, ie absolute
@@ -41,55 +41,53 @@ function GridMaker(id, params, master_grid = null) {
     }
 
     const lm = layers_meta[id]
-    let y_range_fn = undefined
+    let y_range_fn = null
     const ls = !!grid.logScale
 
     if (lm !== null && typeof lm === 'object' && Object.keys(lm).length !== 0) {
         // The first y_range() determines the range
         y_range_fn = Object.values(lm)
-            .find(x => x.hasOwnProperty('y_range') && typeof x.y_range === 'function')
+            .find(x => x.hasOwnProperty('y_range'))
         y_range_fn = y_range_fn === undefined ? null : y_range_fn.y_range
         // TODO: what is y_range for? to customize the range for our offchart?
     }
 
     // Calc vertical ($/₿) range
     function calc_$range() {
-        let hi, lo;
-
-        if (!master_grid) {
-            // $ candlestick range
-            if (typeof y_range_fn === 'function') {
-                var [hi, lo] = y_range_fn(hi, lo)
-            } else {
-                hi = -Infinity, lo = Infinity
-                for (var i = 0, n = sub.length; i < n; i++) {
-                    let x = sub[i]
-                    if (x[2] > hi) hi = x[2]
-                    if (x[3] < lo) lo = x[3]
-                }
-            }
-        } else {
-            // Offchart indicator range
-            hi = -Infinity, lo = Infinity
-            for (var i = 0; i < sub.length; i++) {
-                for (var j = 1; j < sub[i].length; j++) {
-                    let v = sub[i][j]
-                    if (v > hi) hi = v
-                    if (v < lo) lo = v
-                }
-            }
-            if (typeof y_range_fn === 'function') { var [hi, lo, exp] = y_range_fn(hi, lo) }
-        }
-
         // Fixed y-range in non-auto mode
-        //   TODO: what range is referenced here? should it be changed to support object instead of array?
-        //   TODO: range is likely object here right?
         if (y_t && !y_t.auto && y_t.range) {
             self.$_hi = y_t.range[0]
             self.$_lo = y_t.range[1]
         } else {
+            let hi, lo, exp;  // H & L price extremes
+
+            if (!master_grid) {  // ie we _are_ the master grid
+                // $ candlestick range
+                if (y_range_fn !== null) {
+                    [hi, lo] = y_range_fn(hi, lo)  // TODO!!: what's going on here, hi-lo are passed to y_range_fn, but they should be undefined at this point!
+                } else {
+                    hi = -Infinity, lo = Infinity
+                    for (let i = 0, n = sub.length; i < n; i++) {
+                        let x = sub[i]
+                        if (x[2] > hi) hi = x[2]
+                        if (x[3] < lo) lo = x[3]
+                    }
+                }
+            } else {
+                // Offchart indicator range
+                hi = -Infinity, lo = Infinity
+                for (let i = 0; i < sub.length; i++) {
+                    for (let j = 1; j < sub[i].length; j++) {
+                        let v = sub[i][j]
+                        if (v > hi) hi = v
+                        if (v < lo) lo = v
+                    }
+                }
+                if (y_range_fn !== null) { [hi, lo, exp] = y_range_fn(hi, lo) }
+            }
+
             if (!ls) {
-                exp = exp === false ? 0 : 1
+                exp = exp === false ? 0 : 1  //TODO!!: exp could be undefined, so why === false check?; or is it intentional????
                 self.$_hi = hi + (hi - lo) * $p.config.EXPAND * exp
                 self.$_lo = lo - (hi - lo) * $p.config.EXPAND * exp
             } else {
@@ -131,8 +129,7 @@ function GridMaker(id, params, master_grid = null) {
         // from it:
 
         // TODO: add custom formatter f()
-        lens.push(self.$_hi.toFixed(self.prec).length)
-        lens.push(self.$_lo.toFixed(self.prec).length)
+
         self.prec = calc_precision(sub)
         let lens = []
         lens.push(self.$_hi.toFixed(self.prec).length)
@@ -153,20 +150,21 @@ function GridMaker(id, params, master_grid = null) {
         let max = -Infinity
 
         // Speed UP
-        for (var i = 0, n = data.length; i < n; i++) {
-            let x = data[i]
+        for (let i = 0, n = data.length; i < n; i++) {
+            const x = data[i]
             if (x[1] > max) max = x[1]
             else if (x[1] < min) min = x[1]
         }
         // Get max lengths of integer and fractional parts
-        let l, r;
         [min, max].forEach(x => {
             // Fix undefined bug
-            var open_as_str = x != null ? x.toString() : ''
+            let open_as_str = x != null ? x.toString() : ''  // TODO: can x ever be null even?
+            let l, r;
+
             if (x < 0.000001) {
                 // Parsing the exponential form. Gosh this
                 // smells trickily
-                const [ls, rs] = open_as_str.split('e-')
+                const [ls, rs] = open_as_str.split('e-');
                 [l, r] = ls.split('.') // TODO note to laur: check what's r value if not enough values? (instead of checking !r in following line)
                 if (!r) r = ''
                 r = { length: r.length + parseInt(rs) || 0 }  // we simulate string type here - we need the 'length' field;
@@ -241,6 +239,7 @@ function GridMaker(id, params, master_grid = null) {
 
     // Select nearest good-looking t step (m is target scale)
     function time_step(delta_range) {
+        // TODO!!: do we want to keep gap_collapse=3 check? upstream has (if ti_map.ib) check instead; we should.... unify them somehow!
         const k = $p.gap_collapse === 3 ? 60000 : 1
         const m = delta_range * k * ($p.config.GRIDX / $p.width)
 
@@ -272,14 +271,17 @@ function GridMaker(id, params, master_grid = null) {
         let h = Math.min(self.B, height)
         if (h < $p.config.GRIDY) return 1
         let n = h / $p.config.GRIDY // target grid N
-        let yrange = self.$_hi
+        //let yrange = self.$_hi  // TODO!!: commented out, as it's only used by m&p below
+        let yratio
         if (self.$_lo > 0) {
-            var yratio = self.$_hi / self.$_lo
+            yratio = self.$_hi / self.$_lo
         } else {
-            yratio = self.$_hi / 1 // TODO: small values
+            yratio = self.$_hi / 1 // TODO: small values; TODO!! laur: what's the deal with /1? note somewhere else we had *1
         }
-        let m = yrange * ($p.config.GRIDY / h)
-        let p = parseInt(yrange.toExponential().split('e')[1])
+
+        // TODO!!: commented out m & p definitions, as they're unused; same upstream
+        //let m = yrange * ($p.config.GRIDY / h)
+        //let p = parseInt(yrange.toExponential().split('e')[1])
         return Math.pow(yratio, 1/n)
     }
 
@@ -288,14 +290,17 @@ function GridMaker(id, params, master_grid = null) {
         let h = Math.min(height - self.B, height)
         if (h < $p.config.GRIDY) return 1
         let n = h / $p.config.GRIDY // target grid N
-        let yrange = Math.abs(self.$_lo)
+        //let yrange = Math.abs(self.$_lo)  // TODO!!: commented out, as it's only used by m&p below
+        let yratio
         if (self.$_hi < 0 && self.$_lo < 0) {
-            var yratio = Math.abs(self.$_lo / self.$_hi)
+            yratio = Math.abs(self.$_lo / self.$_hi)
         } else {
-            yratio = Math.abs(self.$_lo) / 1
+            yratio = Math.abs(self.$_lo) / 1  // TODO!! laur: what's the deal with /1? note somewhere else we had *1
         }
-        let m = yrange * ($p.config.GRIDY / h)
-        let p = parseInt(yrange.toExponential().split('e')[1])
+
+        // TODO!!: commented out m & p definitions, as they're unused; same upstream
+        //let m = yrange * ($p.config.GRIDY / h)
+        //let p = parseInt(yrange.toExponential().split('e')[1])
         return Math.pow(yratio, 1/n)
     }
 
@@ -303,7 +308,7 @@ function GridMaker(id, params, master_grid = null) {
 
         // If this is a subgrid, no need to calc a timeline,
         // we just borrow it from the master_grid:
-        if (master_grid === null) {
+        if (!master_grid) {
 
             self.t_step = time_step(range.delta)
             self.xs = []
@@ -312,20 +317,21 @@ function GridMaker(id, params, master_grid = null) {
             /* TODO: remove the left-side glitch
 
             let year_0 = Utils.get_year(sub[0][0])
-            for (var t0 = year_0; t0 < range.start; t0 += self.t_step) {}
+            for (let t0 = year_0; t0 < range.start; t0 += self.t_step) {} // TODO!!: this is new post-rebase and unsure if works!
 
             let m0 = Utils.get_month(t0)*/
 
-            for (var i = 0; i < sub.length; i++) {
+            for (let i = 0; i < sub.length; i++) {
                 const p = sub[i]
                 let prev = sub[i-1] || []
-                let prev_xs = self.xs[self.xs.length - 1] || [0,[]]
-                let x = Math.floor((p[0] - range.start) * r)
+                let prev_xs = self.xs[self.xs.length - 1] || [0,[]] // TODO!!: default value is missing 3rd unit (the rank?) - now self.xs has 3 dimensions right?
+                //let x = Math.floor((p[0] - range[0]) * r) // upstream ver; TODO!! maybe Utils.t2screen() is no longer valid as some mapping is done in insert_line()?
+                let x = Utils.t2screen(p[0], range, self.spacex)
 
                 insert_line(prev, p, x)
 
                 // Filtering lines that are too near
-                let xs = self.xs[self.xs.length - 1] || [0, []]
+                let xs = self.xs[self.xs.length - 1] || [0, []] // TODO!!: default value is missing 3rd unit (the rank?) - now self.xs has 3 dimensions right?
 
                 if (prev_xs === xs) continue
 
@@ -357,14 +363,15 @@ function GridMaker(id, params, master_grid = null) {
 
     function insert_line(prev, p, x, m0) {
 
-        let prev_t = ti_map.ib ? ti_map.i2t(prev[0]) : prev[0]
-        let p_t = ti_map.ib ? ti_map.i2t(p[0]) : p[0]
+        // TODO!!: are these gap_collapse and/or ti_map.ib checks ok here? they want unifying!:
+        let prev_t = (ti_map.ib || $p.gap_collapse === 3) ? ti_map.i2t(prev[0]) : prev[0]
+        let p_t = (ti_map.ib || $p.gap_collapse === 3) ? ti_map.i2t(p[0]) : p[0]
 
         if (ti_map.tf < DAY) {
             prev_t += timezone * HOUR
             p_t += timezone * HOUR
         }
-        let d = timezone * HOUR
+        //let d = timezone * HOUR // TODO!! unused
 
         // TODO: take this block =========> (see below)
         if ((prev[0] || interval === YEAR) &&
@@ -380,11 +387,7 @@ function GridMaker(id, params, master_grid = null) {
         else if (Utils.day_start(p_t) === p_t) {
             self.xs.push([x, p, DAY])
         }
-        else if (p[0] % self.t_step === 0) {
-// TODO: earlier _we_ had something like this; do we need Utils.t2screen() somewher??
-//                if (p[0] % self.t_step === 0) {  // TODO: this check is to make sure candle fits nicely or what?
-//                    const x = Utils.t2screen(p[0], range, self.spacex)
-//                    self.xs.push([x, p])
+        else if (p[0] % self.t_step === 0) {  // TODO: this check is to make sure candle fits nicely or what?
             self.xs.push([x, p, interval])
         }
     }
@@ -394,13 +397,13 @@ function GridMaker(id, params, master_grid = null) {
      */
     function extend_left(delta_range, r) {
 
-        if (self.xs.length === 0) return
+        if (self.xs.length === 0 || !isFinite(r)) return
 
         let t = self.xs[0][1][0]  // first candle's time
         while (true) {
             t -= self.t_step
             const x = Utils.t2screen(t, range, self.spacex)
-// TODO: upstream has for above line:   let x = Math.floor((t  - range[0]) * r)
+            // let x = Math.floor((t  - range[0]) * r)  // TODO!!: upstream had this
             if (x < 0) break
             // TODO: ==========> And insert it here somehow
             if (t % interval === 0) {
@@ -420,7 +423,7 @@ function GridMaker(id, params, master_grid = null) {
         while (true) {
             t += self.t_step
             const x = Utils.t2screen(t, range, self.spacex)
-// TODO: upstream has this for above line:              let x = Math.floor((t  - range[0]) * r)
+            // let x = Math.floor((t  - range[0]) * r)  // TODO!!: upstream had this
             if (x > self.spacex) break
             if (t % interval === 0) {
                 self.xs.push([x, [t], interval])
@@ -439,6 +442,7 @@ function GridMaker(id, params, master_grid = null) {
         self.ys = []
 
         const y1 = self.$_lo - self.$_lo % self.$_step
+
         for (let y$ = y1; y$ <= self.$_hi; y$ += self.$_step) {
             const y = Math.floor(y$ * self.A + self.B)
             if (y > height) continue
@@ -464,7 +468,7 @@ function GridMaker(id, params, master_grid = null) {
         let q = 1 + (self.$_mult - 1) / 2
 
         // Over 0
-        for (var y$ = y1; y$ > 0; y$ /= self.$_mult) {
+        for (let y$ = y1; y$ > 0; y$ /= self.$_mult) {
             y$ = log_rounder(y$, q)
             let y = Math.floor(math.log(y$) * self.A + self.B)
             self.ys.push([y, Utils.strip(y$)])
@@ -476,7 +480,7 @@ function GridMaker(id, params, master_grid = null) {
 
         // Under 0
         yp = Infinity
-        for (var y$ = y2; y$ < 0; y$ /= self.$_mult) {
+        for (let y$ = y2; y$ < 0; y$ /= self.$_mult) {
             y$ = log_rounder(y$, q)
             let y = Math.floor(math.log(y$) * self.A + self.B)
             if (yp - y < $p.config.GRIDY * 0.7) break
@@ -494,7 +498,7 @@ function GridMaker(id, params, master_grid = null) {
     // the fixed value always included
     function search_start_pos(value) {
         let N = height / $p.config.GRIDY // target grid N
-        var y = Infinity, y$ = value, count = 0
+        let y = Infinity, y$ = value, count = 0
         while (y > 0) {
             y = Math.floor(math.log(y$) * self.A + self.B)
             y$ *= self.$_mult
@@ -505,7 +509,7 @@ function GridMaker(id, params, master_grid = null) {
 
     function search_start_neg(value) {
         let N = height / $p.config.GRIDY // target grid N
-        var y = -Infinity, y$ = value, count = 0
+        let y = -Infinity, y$ = value, count = 0
         while (y < height) {
             y = Math.floor(math.log(y$) * self.A + self.B)
             y$ *= self.$_mult
@@ -519,7 +523,8 @@ function GridMaker(id, params, master_grid = null) {
         let s = Math.sign(x)
         x = Math.abs(x)
         if (x > 10) {
-            for (var div = 10; div < MAX_INT; div *= 10) {
+            let div = 10
+            for (; div < MAX_INT; div *= 10) {
                 let nice = Math.floor(x / div) * div
                 if (x / nice > quality) {  // More than 10% off
                     break
@@ -528,7 +533,8 @@ function GridMaker(id, params, master_grid = null) {
             div /= 10
             return s * Math.floor(x / div) * div
         } else if (x < 1) {
-            for (var ro = 10; ro >= 1; ro--) {
+            let ro = 10
+            for (; ro >= 1; ro--) {
                 let nice = Utils.round(x, ro)
                 if (x / nice > quality) {  // More than 10% off
                     break
@@ -541,7 +547,7 @@ function GridMaker(id, params, master_grid = null) {
     }
 
     function apply_sizes() {
-        self.width = $p.width - self.sb  // TODO: try to deprecate, same as self.spacex
+        self.width = $p.width - self.sb  // TODO: try to deprecate, same as self.spacex, ie assign in constructor above i guess?
         //self.height = height  // note this was also commented out, now assigning height prop above where self is declared
     }
 

@@ -1,6 +1,7 @@
 <template>
     <img class="t-vue-lbtn"
-        :id="uuid" :style="{
+        :id="uuid"
+        :style="{
             width: config.L_BTN_SIZE + 'px',
             height: config.L_BTN_SIZE + 'px',
             margin: config.L_BTN_MARGIN

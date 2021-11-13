@@ -1,7 +1,7 @@
 module.exports = {
     "env": {
         "browser": true,
-        "es6": true
+        "es7": true
     },
     "extends": [
         "eslint:recommended",
@@ -12,7 +12,7 @@ module.exports = {
         "SharedArrayBuffer": "readonly"
     },
     "parserOptions": {
-        "ecmaVersion": 2018,
+        "ecmaVersion": "latest",
         "sourceType": "module"
     },
     "plugins": [

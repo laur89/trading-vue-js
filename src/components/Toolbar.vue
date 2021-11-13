@@ -1,8 +1,8 @@
 
 <template>
     <div class="trading-vue-toolbar"
-         :key="tool_count"
-         :style="styles">
+         :style="styles"
+         :key="tool_count">
         <toolbar-item v-for="(tool, i) in groups"
             v-if="tool.icon && !tool.hidden"
             @item-selected="selected"
@@ -23,10 +23,10 @@ import ToolbarItem from './ToolbarItem.vue'
 
 export default {
     name: 'Toolbar',
-    components: { ToolbarItem },
     props: [
         'data', 'height', 'colors', 'tv_id', 'config'
     ],
+    components: { ToolbarItem },
     mounted() {
     },
     methods: {
@@ -59,7 +59,7 @@ export default {
             let st = this.$props.config.TB_B_STYLE
             return {
                 'width': `${w}px`,
-                'height': `${this.$props.height}px`, // TODO: upstream had `${this.$props.height-3}px`
+                'height': `${this.$props.height}px`, // TODO: upstream had `${this.$props.height-3}px`, ie -3
                 'background-color': cb,
                 'border-right': `${b}px ${st} ${brd}`
             }

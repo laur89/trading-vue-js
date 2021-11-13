@@ -32,6 +32,8 @@ class CursorUpdater {
             }
 
             if (grid.id !== e.grid_id) continue
+
+            // !! note this has bit of our own customisation!! same for cursor_time() below
             this.cursor.x = c.is_out && Math.abs(e.x - c.x) >= grid.px_step/2
                 ? grid.t2screen(this.cursor.t)
                 : c.x;

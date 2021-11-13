@@ -50,9 +50,8 @@ export default {
 
         // In case it's added as offchart overlay
         y_range() {
-            var hi = -Infinity, lo = Infinity
-            for (var i = 0, n = this.sub.length; i < n; i++) {
-                let x = this.sub[i]
+            let hi = -Infinity, lo = Infinity
+            for (const x of this.sub) {
                 if (x[2] > hi) hi = x[2]
                 if (x[3] < lo) lo = x[3]
             }

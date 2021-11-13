@@ -15,25 +15,27 @@
             :meta_props="get_meta_props"
             @legend-button-click="button_click">
         </chart-legend>
+        <!-- TODO: upstream had range-changed instead of our @movement
+             v-on:range-changed="range_changed" -->
         <grid v-bind="grid_props" ref="grid"
-            v-bind:grid_id="grid_id"
-             v-on:register-kb-listener="register_kb"
-             v-on:remove-kb-listener="remove_kb"
-             v-on:range-changed="range_changed"
-             v-on:cursor-changed="cursor_changed"
-             v-on:cursor-locked="cursor_locked"
-             v-on:layer-meta-props="emit_meta_props"
-             v-on:custom-event="emit_custom_event"
-             v-on:sidebar-transform="sidebar_transform"
-             v-on:rezoom-range="rezoom_range"
-             @movement="movement_changed">
+             :grid_id="grid_id"
+             @register-kb-listener="register_kb"
+             @remove-kb-listener="remove_kb"
+             @movement="movement_changed"
+             @cursor-changed="cursor_changed"
+             @cursor-locked="cursor_locked"
+             @layer-meta-props="emit_meta_props"
+             @custom-event="emit_custom_event"
+             @sidebar-transform="sidebar_transform"
+             @rezoom-range="rezoom_range"
+        >
         </grid>
         <sidebar
             :ref="'sb-' + grid_id"
             v-bind="sidebar_props"
-            v-bind:grid_id="grid_id"
-            v-bind:rerender="rerender"
-            v-on:sidebar-transform="sidebar_transform">
+            :grid_id="grid_id"
+            :rerender="rerender"
+            @sidebar-transform="sidebar_transform">
         </sidebar>
     </div>
 </template>
@@ -91,7 +93,7 @@ export default {
             this.$emit('remove-kb-listener', event)
         },
         rezoom_range(event) {
-            let id = 'sb-' + event.grid_id
+            const id = 'sb-' + event.grid_id
             if (this.$refs[id]) {
                 this.$refs[id].renderer.rezoom_range(
                     event.z, event.diff1, event.diff2
@@ -100,7 +102,7 @@ export default {
         },
         ghash(val) {
             // Measures grid heights configuration
-            let hs = val.layout.grids.map(x => x.height)
+            const hs = val.layout.grids.map(x => x.height)
             return hs.reduce((a, b) => a + b, '')
         },
         on_dc_legend_button_click(event) {
@@ -171,7 +173,7 @@ export default {
     watch: {
         common: {
             handler: function (val, old_val) {
-                let newhash = this.ghash(val)
+                const newhash = this.ghash(val)
                 if (newhash !== this.last_ghash) {
                     this.rerender++
                 }

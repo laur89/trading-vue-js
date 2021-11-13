@@ -42,7 +42,7 @@ export default class Botbar {
 
         for (let i = 0; i < this.layout.botbar.xs.length; i++) {
             const p = this.layout.botbar.xs[i]
-            const lbl = this.format_date(p[1][0], this.layout.botbar.xs[i+1])
+            const lbl = this.format_date(p, this.layout.botbar.xs[i+1])  // this.layout.botbar.xs[i+1], ie next candle, can be undefined; it's fine
 
             if (p[0] > width - sb) continue
 
@@ -69,7 +69,7 @@ export default class Botbar {
             layout: layout,
             cursor: this.$p.cursor
         }
-        for (var s of this.comp.bot_shaders) {
+        for (const s of this.comp.bot_shaders) {
             this.ctx.save()
             s.draw(this.ctx, props)
             this.ctx.restore()
@@ -101,18 +101,20 @@ export default class Botbar {
     // TODO2: this function is called way too often! ie when no scrolling/paning is happening!
     /**
      * Bottom bar labels for the grid-lines
-     * @param t
+     * @param p candle we're formatting date for
+     * @param next_candle  candle following p, can be undefined!
      * @returns {string|number|*}
      */
-    format_date(t, next_candle) {
-        if (this.$p.gap_collapse === 3) t = this.grid_0.ti_map.i2t(t)
+    format_date(p, next_candle) {
+        let t = p[1][0]
+        if (this.$p.gap_collapse === 3) t = this.grid_0.ti_map.i2t(t)  // TODO note upstream has no check for .i2t(t), function itself is protected!
         let ti = this.$p.layout.grids[0].ti_map.tf
         // Enable timezones only for tf < 1D
         let k = ti < DAY ? 1 : 0
         let tZ = t + k * this.$p.timezone * HOUR
 
         //t += new Date(t).getTimezoneOffset() * MINUTE
-        let d = new Date(tZ)
+        const d = new Date(tZ)
 
         if (p[2] === YEAR || Utils.year_start(t) === t) {
             return d.getUTCFullYear()
@@ -123,7 +125,9 @@ export default class Botbar {
         // TODO(*) see grid_maker.js
         if (Utils.day_start(tZ) === tZ) return d.getUTCDate()
 
-        // change label if we're followed by gap: TODO: following if-block is hacky and should be remvoved or reworked! from here
+
+
+        // change label if we're _followed_ by gap: TODO: following if-block is hacky and should be removed or reworked! from here
         if (this.range.gaps !== null && next_candle !== undefined) {
             for (const gap of this.range.gaps) {
                 if (t <= gap.start && next_candle[1][0] >= gap.end) {
@@ -133,6 +137,8 @@ export default class Botbar {
                 }
             }
         }
+
+
 
         let h = Utils.add_zero(d.getUTCHours())
         let m = Utils.add_zero(d.getUTCMinutes())
@@ -150,34 +156,34 @@ export default class Botbar {
 
         //t += new Date(t).getTimezoneOffset() * MINUTE
         let d = new Date(t + k * this.$p.timezone * HOUR)
-        const ti = this.$p.interval
 
         if (ti === YEAR) {
             return d.getUTCFullYear()
         }
 
+        let mo_yr, dd;
         if (ti < YEAR) {
-            var yr = '`' + `${d.getUTCFullYear()}`.slice(-2)
-            var mo = MONTHMAP[d.getUTCMonth()]
-            var dd = '01'
+            //let yr = '`' + `${d.getUTCFullYear()}`.slice(-2)
+            //let mo = MONTHMAP[d.getUTCMonth()]
+            //let dd = '01'
+            mo_yr = MONTHMAP[d.getUTCMonth()] + ' `' + d.getUTCFullYear().toString().slice(-2)
+            dd = '01'
         }
 
         if (ti <= WEEK) dd = d.getUTCDate()
-        let date = `${dd} ${mo} ${yr}`
-        let time = ''
-        // TODO: these 3 commented lines are from merge... delete?
-        //let time = '', date = ''
-        //if (dd !== undefined) date += dd;
-        //if (mo_yr !== undefined) date += date.length === 0 ? mo_yr : ' ' + mo_yr
+        let time = '', date = ''
+        if (dd !== undefined) date += dd;
+        if (mo_yr !== undefined) date += date.length === 0 ? mo_yr : ` ${mo_yr}`
 
         if (ti < DAY) {
             let h = Utils.add_zero(d.getUTCHours())
             let m = Utils.add_zero(d.getUTCMinutes())
             time = h + ":" + m
+            // if (date.length !== 0) date += '  '  // TODO: can date even be unset?
+            date += '  '
         }
 
-        return `${date}  ${time}`
-
+        return date + time
     }
 
     // Highlights the begining of a time interval

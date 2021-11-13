@@ -169,6 +169,7 @@ export default {
             type: Array,
             default: function () { return [] }
         },
+        // TODO!!: in nova2, we had completely removed this indexBased prop:
         indexBased: {
             type: Boolean,
             default: false
@@ -204,6 +205,7 @@ export default {
                 font: this.font_comp,
                 buttons: this.$props.legendButtons,
                 toolbar: this.$props.toolbar,
+                //ib: this.$props.indexBased || this.index_based || false, // TODO!!: is it ok to remove this prop?
                 gap_collapse: this.get_effective_collapse_mode,
                 colors: Object.assign({}, this.$props.colors ||
                     this.colorpack),
@@ -223,13 +225,34 @@ export default {
         decubed() {
             const data = this.$props.data
 
-            if (data.hasOwnProperty('data')) {
+            if (data.data !== undefined) {
                 // DataCube detected
                 data.init_tvjs(this)
                 return data.data
             } else {
                 return data
             }
+        },
+        index_based() {
+            const base = this.$props.data
+            if (base.chart) {
+                return base.chart.indexBased
+            }
+            else if (base.data) {
+                return base.data.chart.indexBased
+            }
+            return false
+        },
+        mod_ovs() {
+            let arr = []
+            for (const x of this.$props.extensions) {
+                arr.push(...Object.values(x.overlays))
+            }
+            return arr
+        },
+        font_comp() {
+            return this.skin_proto && this.skin_proto.font ?
+                this.skin_proto.font : this.font
         },
         get_effective_collapse_mode() {
             const base = this.$props.data
@@ -239,17 +262,6 @@ export default {
             }
 
             return this.$props.gap_collapse
-        },
-        mod_ovs() {
-            let arr = []
-            for (var x of this.$props.extensions) {
-                arr.push(...Object.values(x.overlays))
-            }
-            return arr
-        },
-        font_comp() {
-            return this.skin_proto && this.skin_proto.font ?
-                this.skin_proto.font : this.font
         }
     },
     data() {
@@ -272,7 +284,7 @@ export default {
             if (!resetRange && range.start && range.end) {
                 this.$nextTick(() => this.setRange(...range))  // TODO: need to correctly set the range here
             }
-            this.$nextTick(() => this.custom_event({
+            this.$nextTick(() => this.on_custom_event({
                 event: 'chart-reset', args: []
             }))
         },
@@ -311,12 +323,10 @@ export default {
         },
         getCursor() {
 
-            let cursor = this.$refs.chart.cursor
+            const cursor = this.$refs.chart.cursor
             if (this.chart_props.gap_collapse === 3) {
-            // TODO: upstream had this if:
-            //if (this.chart_props.ib) {
                 const ti_map = this.$refs.chart.ti_map
-                let copy = Object.assign({}, cursor)
+                const copy = Object.assign({}, cursor)
                 copy.i = copy.t
                 copy.t = ti_map.i2t(copy.t)
                 return copy
@@ -327,7 +337,7 @@ export default {
             this.tip = { text, color }
         },
         on_legend_button(event) {
-            this.custom_event({
+            this.on_custom_event({
                 event: 'legend-button-click', args: [event]
             })
         },
@@ -341,7 +351,7 @@ export default {
             const data = this.$props.data
             let ctrl = this.controllers.length !== 0
             if (ctrl) this.pre_dc(d)
-            if (data.hasOwnProperty('tv')) {
+            if (data.tv) {
                 // If the data object is DataCube
                 data.on_custom_event(d.event, d.args)
             }
@@ -353,20 +363,24 @@ export default {
                 r = r.map(x => ti_map.i2t(x))
             }
             this.$emit('range-changed', r)
-            this.custom_event(
+            this.on_custom_event(
                 {event: 'range-changed', args: [r]}
             )
-            if (this.onrange) this.onrange(r)
+
+            // TODO: this onrange() is related to the upstream data fetch logic?
+            // onrange() itself defined by set_loader() we don't use
+            // if (this.onrange) this.onrange(r)
         },
+        /*  Note this upstreal loader is removed as we use our own data loading logic from cube???
         set_loader(dc) {
             this.onrange = r => {
                 let pf = this.chart_props.ib ? '_ms' : ''
                 let tf = this.$refs.chart['interval' + pf]
                 dc.range_changed(r, tf)
             }
-        },
+        },*/
         parse_colors(colors) {
-            for (var k in this.$props) {
+            for (let k in this.$props) {
                 if (k.indexOf('color') === 0 && k !== 'colors') {
                     let k2 = k.replace('color', '')
                     k2 = k2[0].toLowerCase() + k2.slice(1)
