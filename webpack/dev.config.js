@@ -56,7 +56,22 @@ module.exports = (env, options) => ({
                 } catch(e) {}
                 res.send("[OK]")
             })
-        }
+        },
+        // setupMiddlewares: (middlewares, devServer) => {  // TODO: this block will be valid instead of 'before' after webpack-dev-server is upgraded to 4.9.1+
+        //     if (!devServer) {
+        //         throw new Error('webpack-dev-server is not defined');
+        //     }
+        //
+        //     devServer.app.get('/debug', (req, res) => {
+        //         try {
+        //             const argv = JSON.parse(req.query.argv)
+        //             console.log(...argv)
+        //         } catch(e) {
+        //
+        //         }
+        //         res.send("[OK]")
+        //     });
+        // }
     },
     optimization: {
         minimize: options.mode === 'production',

@@ -1,4 +1,5 @@
 const VueLoaderPlugin = require('vue-loader/lib/plugin')
+// const { VueLoaderPlugin } = require('vue-loader') TODO: this is what you need to use when upgrading vue-loader to v17+
 const TerserPlugin = require('terser-webpack-plugin')
 
 const webpack = require('webpack')

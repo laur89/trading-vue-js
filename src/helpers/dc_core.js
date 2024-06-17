@@ -60,7 +60,8 @@ export default class DCCore extends DCEvents {
         // TODO: remove this line at one point once old data format is fully deprecated:
         delete this.data.ohlcv
 
-        if (!('datasets' in this.data)) {
+        // if (!('datasets' in this.data)) {
+        if (!this.data.hasOwnProperty('datasets')) {
             this.tv.$set(this.data, 'datasets', [])
         }
 
@@ -131,27 +132,39 @@ export default class DCCore extends DCEvents {
         let head = Infinity, tail = -Infinity;
         if (d.length !== 0) {
             head = this._getHead();
+            window.console.log(`head response: ${head}`)
             tail = this._getTail();
+        }
+
+
+        if (this.tv.$refs.chart.dc_left_btn_displayed && range.start <= head) {
+            this.tv.$refs.chart.dc_left_btn_displayed = false;
+        } else if (!this.tv.$refs.chart.dc_left_btn_displayed && range.start > head + this.dynamicData.timeframe * 100) {  // TODO this check same as in unsubIfNeeded()!
+            this.tv.$refs.chart.dc_left_btn_displayed = true;
         }
 
         if (this.dynamicData.isHead && !this.unsubIfNeeded(range.end, tail)) {
             // we didn't subscribe, bail here - no reason to continue w/ range_changed logic
             this.dynamicData.loading = false;
+            // console.log(`KEK DELME`)
             return;
         } else if (!this.tv.$refs.chart.dc_legend_displayed && range.end < tail - this.dynamicData.timeframe * 100) {  // TODO this check same as in unsubIfNeeded()!
             this.tv.$refs.chart.dc_legend_displayed = true;
         } else if (this.tv.$refs.chart.dc_legend_displayed && range.end >= tail) {
+            // console.log(`hiding legeld: range.end: ${range.end}, tail: ${tail}, range.end >= tail: ${range.end >= tail}`)
             this.tv.$refs.chart.dc_legend_displayed = false;
         }
 
         const fetchLookAheadMs = this.dynamicData.fetchLookAhead * this.dynamicData.timeframe
         const fetchTriggerMarginMs = this.dynamicData.fetchTriggerMargin * this.dynamicData.timeframe
+        console.log(`lookaheadMs: ${fetchLookAheadMs}, fTriggerMarginMs: ${fetchTriggerMarginMs}, range.start: ${range.start}, head: ${head}, tail: ${tail}`)
         range.start = (!this.dynamicData.isBeginning && range.start - fetchTriggerMarginMs < head)
             ? Math.floor(Math.min(range.start, head) - fetchLookAheadMs)
             : tail;
         range.end = (!this.dynamicData.isEnd && range.end + fetchTriggerMarginMs > tail)
             ? Math.ceil(Math.max(range.end, tail) + fetchLookAheadMs)
             : head;
+        console.log(`range.start post-modification: ${range.start} (istail = ${range.start === tail})`)
 
         if (range.start < head || range.end > tail) {  // _at least_ one end needs more data
             this.fetchAndProcess(range, head, tail)
@@ -232,7 +245,15 @@ export default class DCCore extends DCEvents {
         });
     }
 
-    // A new chunk of data is loaded
+    // TODO: how to decide what bar to go to? we can't go to very first element, as that'd basically show us an empty screen (as first bar would be on our right-hand edge)
+    goto_current_head() {
+        const d = this.data.chart.data;
+        if (d.length === 0) return;
+
+        this.tv.goto(d[100][0]);  // TODO we're hard-coding to 100 bars as a quick hack
+    }
+
+    // A new chunk of data is loaded; note this is _not_ used for live-data processing
     chunk_loaded = (data, fetchDirection, latch = null) => {
         try {
             if (Array.isArray(data)) {
@@ -245,19 +266,20 @@ export default class DCCore extends DCEvents {
                     this.merge(k, data[k])
                 }
 
-                if (this.dynamicData.isHead) {
+                if (this.dynamicData.isHead) {  // isHead also means !!isTail?
                     const tail = this._getTail();
 
                     // if the tail of last/latest pulled data is close enough to our visible tail OR
                     // we just pulled the tail (1st req), subscribe to live data feed:
-                    if (this.dynamicData.sub !== null && (this.dynamicData.hasOwnProperty('isTail') ||
+                    // TODO: isn't the dynamicData.isTail check redundant? ie doesn't checking if we're close enough to visible tail cover us already?
+                    if (this.dynamicData.sub !== null && (this.dynamicData.isTail ||
                             this.dynamicData.rangeToQuery.end >= tail - this.dynamicData.timeframe * 100)) {
-                        delete this.dynamicData.isTail
+                        this.dynamicData.isTail = false;
 
                         // TODO: possibly need invoking via setTimeout/$nextTick only with isTail (ie during very first init), as chart range hasn't been init'd yet
                         this.tv.$nextTick(() => {
                             this.tv.goto(tail);
-                            this.dynamicData.sub(tail);  // call sub w/ the latest timestamp we have
+                            this.dynamicData.sub(tail);  // call sub w/ the latest timestamp we have; TODO!!: in ib mode it'll be the trading-vue's pseudoindex, ie always different!!!!
                         })
                     } else {
                         this.dynamicData.isHead = false  // reset the just-assigned 'true' value, as we didn't end up subbing for live data
@@ -276,6 +298,11 @@ export default class DCCore extends DCEvents {
         this.data.chart.data = [];
         this.data.onchart = [];
         this.data.offchart = [];
+
+        this.dynamicData.isBeginning = false;
+        this.dynamicData.isTail = false;
+        this.dynamicData.isHead = false;
+        this.dynamicData.isEnd = false;
     }
 
     _trunc = (data, fetchDirection) => {
@@ -295,6 +322,7 @@ export default class DCCore extends DCEvents {
                 case -1:  // truncate from the end
                     data.length = this.dynamicData.maxDatapoints
                     this.dynamicData.isEnd = false
+                    this.dynamicData.isTail = false
                     unsubIfNeeded()
                     break;
                 default: {  // fetchDirection = 0, ie truncate from both ends
@@ -304,6 +332,7 @@ export default class DCCore extends DCEvents {
 
                     this.dynamicData.isBeginning = false
                     this.dynamicData.isEnd = false
+                    this.dynamicData.isTail = false
                     unsubIfNeeded()
                     break;
                 }
@@ -320,13 +349,16 @@ export default class DCCore extends DCEvents {
     }
 
     _extract_metadata = chartData => {
-
         if (chartData.hasOwnProperty('meta')) {
             chartData.meta.markers.forEach(prop => this.dynamicData[prop] = true)  // isEnd, isHead, isBeginning, isTail
+            this.dynamicData.startTimestamp = chartData.meta.start
+            this.dynamicData.endTimestamp = chartData.meta.end
             delete chartData.meta  // clean up the metadata as it's not part of the chart payload
         }
     }
 
+    // TODO!!: make sure we get the expected/correct value in ib mode; eg atm
+    // it looks like we're just getting the pseudo-index set by the tvjs
     _getTail = () => {
         const d = this.data.chart.data;
         const tail = d.length === 0 ? -1 : d[d.length-1][0];  // note tv's chart.vue keeps track of last cnadle as well
@@ -341,7 +373,8 @@ export default class DCCore extends DCEvents {
         const d = this.data.chart.data;
         const head = d.length === 0 ? -1 : d[0][0];
         if (this.tv.$refs.chart.ib) {
-            return this.tv.$refs.chart.ti_map.t2i(head);
+            window.console.log('getting head!!!...')
+            return this.tv.$refs.chart.ti_map.t2i(head, true);
         }
 
         return head;

@@ -19,6 +19,8 @@ export default class DataCube extends DCCore {
             sub: null,  // can be either null or function
             unsub: null,  // can be either null or function
             initData: null,  // pull the very last available data; TODO: rename to fetchTail
+            fetchHead: null,  // pull the very first available data;
+            goto: null,  // data at specific timestamp;
 
             rangeToQuery: {},
             timeframe: 0,  // millisec
@@ -26,6 +28,7 @@ export default class DataCube extends DCCore {
             loading: true,  // whether we're currently in process of fetching data for a range; TODO: rename as 'fetching'
             // note loading is initialized as 'true', as we want to wait 'til first batch of data is fetched;
             jumpToHeadPending: false,  // whether we're currently processing jump-to-head clickhandler;
+            jumpToTailPending: false,  // whether we're currently processing jump-to-tail clickhandler;
 
 
             cursorLock: false,
@@ -33,9 +36,14 @@ export default class DataCube extends DCCore {
 
             isBeginning: false,  // whether we've reached the beginning of chart - no earlier data is avail
             isEnd: false,  // whether we've reached the end of chart - no later data is or will be avail
-            isHead: false,  // whether we've subscribed to automatically receive chart updates
+            isHead: false,  // whether we've subscribed to automatically receive chart updates; TODO: isn't this same as isEnd, buy for cases where algo is still running? ie we've reached the last datapoint, but there are more possibly to come?
+            isTail: false, // whether we've fetched/reached the end of chart - no later data _might_ be avail; TODO: isn't this useless var?
+
+            startTimestamp: -1,  // total chart starting timestamp
+            endTimestamp: -1,  // total chart end timestamp
 
             maxDatapoints: 10000,  // max number of datapoints allowed in memory; when exceeded, we start truncating; eg 48h is 2880min
+            // maxDatapoints: 2000,  // max number of datapoints allowed in memory; when exceeded, we start truncating; eg 48h is 2880min
             fetchLookAhead: 1000,  // how many datapoints should we fetch ahead as a buffer
             fetchTriggerMargin: 400  // how many datapoints before the in-memory limit should fetch be triggered; keep it smaller than fetchLookAhead
         }
@@ -209,10 +217,23 @@ export default class DataCube extends DCCore {
 
 
 
+
+    // in case we want to call this.dynamicData.initData() with someting more dynamic
+    // than just this.dynamicData.maxDatapoints
+    dataPointsToQuery() {
+        let i = this.dynamicData.rangeToQuery.delta;
+        if (this.dynamicData.timeframe > 1) {  // ie we're not in ib mode; maybe check for if (!this.tv.$refs.chart.ib) instead?
+            i = this.dynamicData.rangeToQuery.delta / this.dynamicData.timeframe
+        }
+
+        return Math.ceil(i * 1.5)
+    }
+
     /**
      *
      * @param loadForRange
      * @param initData
+     * @param fetchHead
      * @param onRangeChanged
      * @param onCursorLockChanged
      * @param onLiveData
@@ -222,6 +243,7 @@ export default class DataCube extends DCCore {
     setDataHandlers({
                         loadForRange,  // needs to return either Promise, or null when using the callback way
                         initData,  // needs to return Promise!
+                        fetchHead,  // needs to return Promise!
                         onRangeChanged = this.range_changed,
                         onCursorLockChanged = this.onCursorLockChanged,
                         onLiveData = this.received_live_data,
@@ -230,15 +252,32 @@ export default class DataCube extends DCCore {
                     } = {}) {
         this.dynamicData.loadForRange = Utils.get_fun_or_null(loadForRange)
         subscribe = Utils.get_fun_or_null(subscribe)
-        this.dynamicData.sub = subscribe === null ? null : subscribe.bind(null, Utils.get_fun_or_null(onLiveData))
+        this.dynamicData.sub = subscribe === null ? null : subscribe.bind(this, Utils.get_fun_or_null(onLiveData))  // TODO: unsure if we should  bind null or this for bind()'s this-arg
         this.dynamicData.unsub = Utils.get_fun_or_null(unsubscribe)
+        this.dynamicData.fetchHead = Utils.get_fun_or_null(fetchHead)
+
+        if (this.dynamicData.loadForRange !== null) {
+            this.dynamicData.goto = async timestamp => {
+                const fetchDir = 1;
+                while (this.dynamicData.loading) {
+                    await Utils.pause(50);
+                }
+
+                this.dynamicData.loading = true;  // acquire lock
+                this.dynamicData.loadForRange(timestamp, 5000, fetchDir).then(data => {
+                    this._clear_data();
+                    this.chunk_loaded(data, fetchDir);
+                    this.goto_current_head();
+                });
+            }
+        }
 
         // allow vue to init, register listeners at next tick: (use setTimeout if not pulling data here)
-        initData = Utils.get_fun_or_null(initData)
+        initData = Utils.get_fun_or_null(initData);
         if (initData !== null) {
             this.dynamicData.initData = initData;
 
-            initData().then(data => {
+            initData(this.dynamicData.maxDatapoints).then(data => {
                 this.tv.register_range_changed_listener(Utils.get_fun_or_null(onRangeChanged))
                 this.tv.register_cursor_lock_listener(Utils.get_fun_or_null(onCursorLockChanged))
 
@@ -248,31 +287,62 @@ export default class DataCube extends DCCore {
 
         this.tv.$refs.chart.$on('dc-legend-button-click', async e => {
 
-            if (this.dynamicData.jumpToHeadPending) {
-                return;  // another call to clickhander pending, bail
-            } else if (this.dynamicData.isHead || this.dynamicData.isEnd) {  // we're currently already subbed OR we already have end of chart
-                this.goto_current_tail();
-            } else if (this.dynamicData.initData !== null) {
-                this.dynamicData.jumpToHeadPending = true;
+            if (e.button === 'right') {
+                if (this.dynamicData.jumpToHeadPending) {
+                    return;  // another call to clickhander pending, bail
+                } else if (this.dynamicData.isHead || this.dynamicData.isEnd) {  // we're currently already subbed OR we already have end of chart
+                    this.goto_current_tail();
+                } else if (this.dynamicData.initData !== null) {
+                    this.dynamicData.jumpToHeadPending = true;
 
-                // if some loading process going on, wait 'til it's done:
-                while (this.dynamicData.loading) {
-                    await Utils.pause(50);
+                    // if some loading process going on, wait 'til it's done:
+                    while (this.dynamicData.loading) {
+                        await Utils.pause(50);
+                    }
+
+                    this.dynamicData.loading = true;  // acquire lock
+                    this.dynamicData.initData(this.dynamicData.maxDatapoints).then(data => {
+                        this._clear_data();  // otherwise we're likely to get a gap between our current tail & head of getTail() call response, that could be interpreted as a wkd-gap!
+                        this.chunk_loaded(data, 1);
+                        this.goto_current_tail();
+                    }).finally(() => {
+                        this.dynamicData.jumpToHeadPending = false;
+                        //this.dynamicData.loading = false;  // redundant, but no harm in keeping
+                    });
                 }
 
-                this.dynamicData.loading = true;  // acquire lock
-                // TODO: currently the delta*1.5 we pass is based on indices if gap_collapse=3!
-                this.dynamicData.initData(Math.ceil(this.dynamicData.rangeToQuery.delta * 1.5)).then(data => {
-                    this._clear_data();  // otherwise we're likely to get a gap between our current tail & head of getTail() call response, that could be interpreted as a wkd-gap!
-                    this.chunk_loaded(data, 1);
-                    this.goto_current_tail();
-                }).finally(() => {
-                    this.dynamicData.jumpToHeadPending = false;
-                    //this.dynamicData.loading = false;  // redundant, but no harm in keeping
+                this.tv.$refs.chart.dc_legend_displayed = false;  // hide dc buttons
+            } else if (e.button === 'left') {
+                if (this.dynamicData.jumpToTailPending) {
+                    return;  // another call to clickhander pending, bail
+                } else if (this.dynamicData.isBeginning) {  // we already have very start of chart
+                    this.goto_current_head();
+                } else if (this.dynamicData.fetchHead !== null) {
+                    this.dynamicData.jumpToTailPending = true;
+
+                    // if some loading process going on, wait 'til it's done:
+                    while (this.dynamicData.loading) {
+                        await Utils.pause(50);
+                    }
+
+                    this.dynamicData.loading = true;  // acquire lock
+                    this.dynamicData.fetchHead(this.dynamicData.maxDatapoints).then(data => {
+                        this._clear_data();  // otherwise we're likely to get a gap between our current tail & head of getTail() call response, that could be interpreted as a wkd-gap!
+                        this.chunk_loaded(data, -1);
+                        this.goto_current_head();
+                    }).finally(() => {
+                        this.dynamicData.jumpToTailPending = false;
+                        //this.dynamicData.loading = false;  // redundant, but no harm in keeping
+                    });
+                }
+
+                this.tv.$refs.chart.dc_left_btn_displayed = false;  // hide left dc button
+            } else if (e.button === 'goto') {
+                this.tv.goto({
+                    e: e.goToMs,
+                    c: 2.5,  // leave bit more empty buffer space to the right
                 });
             }
-
-            this.tv.$refs.chart.dc_legend_displayed = false;  // hide dc buttons
         });
     }
 }

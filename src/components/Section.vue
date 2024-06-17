@@ -6,6 +6,7 @@
                 ref="dc_legend"
                 :common="common"
                 :display="dc_legend_displayed"
+                :dc_left_btn_displayed="dc_left_btn_displayed"
                 @dc-legend-button-click="on_dc_legend_button_click"
         />
         <chart-legend ref="legend"
@@ -50,7 +51,7 @@ import Shaders from '../mixins/shaders.js'
 
 export default {
     name: 'GridSection',
-    props: ['common', 'grid_id', 'dc_legend_displayed'],
+    props: ['common', 'grid_id', 'dc_legend_displayed', 'dc_left_btn_displayed'],
     mixins: [Shaders],
     components: {
         Grid,

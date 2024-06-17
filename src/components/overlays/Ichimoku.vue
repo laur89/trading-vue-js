@@ -1,6 +1,6 @@
 <script>
 //Ichimoku Indicator Overlay. Expected Format: [ <timestamp>, <ConversionLine>, <BaseLine>, <Lead1>, <Lead2>, <Lagging> ]
-import { Overlay } from 'trading-vue-js'
+import Overlay from '../../mixins/overlay.js'
 
 export default {
     name: "Ichimoku",

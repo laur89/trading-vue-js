@@ -4,10 +4,12 @@
         <keyboard ref="keyboard"></keyboard>
       <!--            @range-changed="range_changed"  // TODO: is it ok to have this guy replaced by @movement below? -->
         <grid-section v-for="(grid, i) in this._layout.grids"
-            :key="grid.id" ref="sec"
+            :key="grid.id"
+            ref="sec"
             :common="section_props(i)"
             :grid_id="i"
             :dc_legend_displayed="dc_legend_displayed"
+            :dc_left_btn_displayed="dc_left_btn_displayed"
             @register-kb-listener="register_kb"
             @remove-kb-listener="remove_kb"
             @movement="movement_changed"
@@ -40,6 +42,7 @@ import DataTrack from '../mixins/datatrack.js'
 import TI from './js/ti_mapping.js'
 import Const from '../stuff/constants.js'
 import IndexedArray from 'arrayslicer';
+import { isInteger } from 'lodash-es';
 
 
 const define_tf = d => {
@@ -55,7 +58,7 @@ export default {
     // TODO!!: nova2 had 'ib' removed from props!:
     props: [
         'title_txt', 'data', 'width', 'height', 'font', 'colors',
-        'overlays', 'tv_id', 'config', 'buttons', 'toolbar', 'ib',
+        'overlays', 'tv_id', 'dc', 'config', 'buttons', 'toolbar', 'ib',
         'skin', 'timezone', 'gap_collapse'
     ],
     mixins: [Shaders, DataTrack],
@@ -97,10 +100,21 @@ export default {
         },
 
         goto(t) {
+          console.log(`Chart.vue goto() called w/ ${typeof t === 'object' ? JSON.stringify(t) : t}`)
+          let timestamp = t
+          if (typeof t === 'object') {
+            timestamp = t.e
+          }
+
+          if (isInteger(timestamp) && timestamp.toString().length === 13 &&
+              (timestamp < this.chart.data[0][0] || timestamp > this.chart.data.at(-1)[0])) {
+            this.$props.dc.dynamicData.goto(timestamp);
+          } else {
             this.subset(t)
-            // upstream has this instread:
+            // upstream has this instead:
             //const dt = this.range[1] - this.range[0]
             //this.range_changed([t - dt, t])
+          }
         },
 
         /**
@@ -232,6 +246,8 @@ export default {
             ///}
             this.ti_map = new TI()
 
+            // window.console.log(`chart.subset():  movement = ${movement}`)
+
             switch (this.$props.gap_collapse) {
                 case 1: {
                     // in this mode, only weekend gaps are collapsed; rest are left as-is
@@ -300,7 +316,7 @@ export default {
                     );
 
                     if (data.length === 0) {
-                    //if (!Array.isArray(data) || data.length === 0) {
+                      this.ti_map.init(this, data)  // if we return w/o initing ti_map, then some of its inner fields will remain null/undefined
                       return [];
                     }
 
@@ -345,6 +361,8 @@ export default {
                 meta: this.meta,
                 skin: this.$props.skin,
                 gap_collapse: this.$props.gap_collapse,
+                dcDynamicData: this.$props.dc.dynamicData || null,
+                dcData: this.$props.dc.data || null,
             }
         },
 
@@ -641,6 +659,7 @@ export default {
             sub_start_i: null,  // start index element value; only used in gap_collapse=3;
             ti_map: null,
             dc_legend_displayed: false,  // whether DC legend should be shown
+            dc_left_btn_displayed: false,  // whether DC legend's left btn should be shown
 
         }
     },

@@ -87,7 +87,6 @@ export default {
         // TODO: add support for { grid: { id : N }}
         indicators() {
             const values = this.$props.values
-            const f = this.format
             const types = {}
 
             return this.json_data.filter(
@@ -100,7 +99,7 @@ export default {
                     name: x.name || id,
                     index: (this.off_data || this.json_data).indexOf(x),
                     id: id,
-                    values: values ? f(id, values) : this.n_a(1),
+                    values: values ? this.format(id, values, x.settings) : this.n_a(1),
                     unk: !(id in (this.$props.meta_props || {})),
                     loading: x.loading
                 }
@@ -134,16 +133,19 @@ export default {
         }
     },
     methods: {
-        format(id, values) {
+        format(id, values, settings) {
             const meta = this.$props.meta_props[id] || {}
             // Matches Overlay.data_colors with the data values
             // (see Spline.vue)
-            if (!values[id]) return this.n_a(1)
+            const vals = values[id];
+            if (!vals) return this.n_a(1)
 
             // Custom formatter
-            if (meta.legend) return meta.legend(values[id])
+            if (meta.legend) return meta.legend(vals)
 
-            return values[id].slice(1).map((x, i) => {
+            const sliceEnd = settings.hasOwnProperty('orderIndex') ? settings.orderIndex : vals.length;
+            return vals.slice(1, sliceEnd) // note we slice off the timestamp from the start, and orderIndex, if present, from the end
+                    .map((x, i) => {
                 const cs = meta.data_colors ? meta.data_colors() : []
                 if (typeof x == 'number') {
                     // Show 8 digits for small values

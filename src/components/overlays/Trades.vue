@@ -14,12 +14,12 @@ export default {
             const data = this.$props.data
             ctx.lineWidth = 1.5
             ctx.strokeStyle = 'black'
-            for (var k = 0, n = data.length; k < n; k++) {
-                let p = data[k]
+            for (let k = 0, n = data.length; k < n; k++) {
+                const p = data[k]
                 ctx.fillStyle = p[1] ? this.buy_color : this.sell_color
                 ctx.beginPath()
-                let x = layout.t2screen(p[0]) // x - Mapping
-                let y = layout.$2screen(p[2]) // y - Mapping
+                const x = layout.t2screen(p[0]) // x - Mapping
+                const y = layout.$2screen(p[2]) // y - Mapping
                 ctx.arc(x, y, this.marker_size + 0.5, 0, Math.PI * 2, true)
                 ctx.fill()
                 ctx.stroke()
@@ -35,7 +35,7 @@ export default {
             ctx.fillStyle = this.label_color
             ctx.font = this.new_font
             ctx.textAlign = 'center'
-            ctx.fillText(p[3], x, y - 25)
+            ctx.fillText(p[5], x, y - 25)
         },
         use_for() { return ['Trades'] },
 

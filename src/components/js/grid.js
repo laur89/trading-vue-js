@@ -378,7 +378,9 @@ export default class Grid {
             this.trackpad_scroll(event)
         }
 
-        if (this.trackpad) delta *= 0.032
+        // TODO: this basically limits our zoom if we're also moving on the x-axis (ie 'trackpad' mode):
+        // if (this.trackpad) delta *= 0.032   // original; we instead also limit zoom if ctrlKey is held down:
+        if (!event.originalEvent.ctrlKey && this.trackpad) delta *= 0.032
 
         delta = Utils.smart_wheel(delta)
 

@@ -16,7 +16,7 @@ export default {
             ctx.strokeStyle = this.color
             ctx.fillStyle = this.back_color
 
-            for (var i = 0; i < this.$props.data.length - 1; i++) {
+            for (let i = 0; i < this.$props.data.length - 1; i++) {
 
 
                 let p1 = this.mapp(this.$props.data[i])
@@ -54,13 +54,13 @@ export default {
             const layout = this.layout
             ctx.beginPath()
             ctx.fillStyle = this.back_color
-            for (var i = 0; i < data.length; i++) {
+            for (let i = 0; i < data.length; i++) {
                 let p = data[i]
                 let x = layout.t2screen(p[0])
                 let y = layout.$2screen(p[1] || undefined)
                 ctx.lineTo(x, y)
             }
-            for (var i = data.length - 1; i >= 0; i--) {
+            for (let i = data.length - 1; i >= 0; i--) {
                 let p = data[i]
                 let x = layout.t2screen(p[0])
                 let y = layout.$2screen(p[3] || undefined)
@@ -72,31 +72,32 @@ export default {
             ctx.lineWidth = this.line_width
             ctx.strokeStyle = this.color
 
-            // Top line
+            // Top line/upper-band
             ctx.beginPath()
-            for (var i = 0; i < data.length; i++) {
+            for (let i = 0; i < data.length; i++) {
                 let p = data[i]
                 let x = layout.t2screen(p[0])
                 let y = layout.$2screen(p[1] || undefined)
                 ctx.lineTo(x, y)
             }
             ctx.stroke()
-            // Bottom line
+            // Bottom line/bottom-band
             ctx.beginPath()
-            for (var i = 0; i < data.length; i++) {
+            for (let i = 0; i < data.length; i++) {
                 let p = data[i]
                 let x = layout.t2screen(p[0])
                 let y = layout.$2screen(p[3] || undefined)
                 ctx.lineTo(x, y)
             }
             ctx.stroke()
-            // Middle line
+            // Middle line/middle-band
             if (!this.show_mid) return
             ctx.beginPath()
-            for (var i = 0; i < data.length; i++) {
+            for (let i = 0; i < data.length; i++) {
                 let p = data[i]
+                let midPointValue = p[2] === null ? (p[1]+p[3])/2 : p[2]  // if dataset value for midpoint is null, then calculate ourselves
                 let x = layout.t2screen(p[0])
-                let y = layout.$2screen(p[2] || undefined)
+                let y = layout.$2screen(midPointValue || undefined)
                 ctx.lineTo(x, y)
             }
             ctx.stroke()

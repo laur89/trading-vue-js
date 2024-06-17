@@ -19,6 +19,7 @@ import Volume from "./overlays/Volume.vue"
 import Splitters from "./overlays/Splitters.vue"
 import LineTool from "./overlays/LineTool.vue"
 import RangeTool from "./overlays/RangeTool.vue"
+import Ichimoku from "./overlays/Ichimoku.vue"
 
 
 export default {
@@ -34,7 +35,7 @@ export default {
         // List of all possible overlays (builtin + custom)
         this._list = [
             Spline, Splines, Range, Trades, Channel, Segment,
-            Candles, Volume, Splitters, LineTool, RangeTool
+            Candles, Volume, Splitters, LineTool, RangeTool, Ichimoku
         ]
         .concat(this.$props.overlays)
         this._registry = {}  // overlay type ('Spline', 'EMA', 'TEMA'...) to overlay implementation

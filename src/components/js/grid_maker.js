@@ -77,7 +77,10 @@ function GridMaker(id, params, master_grid = null) {
                 // Offchart indicator range
                 hi = -Infinity, lo = Infinity
                 for (let i = 0; i < sub.length; i++) {
-                    for (let j = 1; j < sub[i].length; j++) {
+                    // TODO: why are we trying _all_ the offchart datapoint values after index 0 (ie all is fair game after time)???
+                    // at the very least, we should exclude our index field, if working on our own custom index-based data!
+                    let maxIdx = $p.gap_collapse === 3 ? sub[i].length - 1 : sub[i].length  // TODO: hack - we should be using our orderIndex arg; we just assume here it'll be the last element when gap_collapse = 3
+                    for (let j = 1; j < maxIdx; j++) {
                         let v = sub[i][j]
                         if (v > hi) hi = v
                         if (v < lo) lo = v

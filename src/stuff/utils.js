@@ -147,6 +147,7 @@ export default {
         if (min >= Const.MONTH && min <= Const.DAY * 30) {
             return Const.DAY * 31
         }
+        console.log(`detected INTERVAL: ${min}`)
         return min
     },
 
@@ -469,6 +470,7 @@ export default {
 
     fast_f_for_range2(arr, range, movement, interval) {
         const ia = new IndexedArray(arr, '0');
+        console.log(`utils: fast_f_for_range2(): range.end: ${range.end}, remainder: ${range.end_remainder}`)
         ia.fetch(range.end - range.end_remainder);  // move cursor to current, pre-move end
         if (ia.cursor === null) throw new Error(`no datapoint found for current/previous endpoint @ [${range.end - range.end_remainder}]`);
 

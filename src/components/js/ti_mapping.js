@@ -192,7 +192,7 @@ export default class TI {
     // TODO: when switch from IB mode to regular tools
     // disappear (bc there is no more mapping)
     // TODO!!: shouldn't this function also bail if !this.ib, same as i2t() does?
-    t2i(t) {
+        t2i(t, ishead=false) {
 
         if (this.sub.length === 0) return undefined
 
@@ -203,24 +203,40 @@ export default class TI {
         const t0 = this.sub[0][0]  // first candle's time
         const tN = this.sub[this.sub.length - 1][0]  // last candle's time
 
+        if (ishead) {
+            window.console.log(`t2i(): t=${t}, t0=${t0}, tN=${tN}, tf=${this.tf}`)
+        }
+
         // Linear extrapolation
         if (t < t0) {
+            if (ishead) {
+                window.console.log(`t2i(): t=${t} < t0=${t0}`)
+                window.console.log(`t2i():  sub-len: ${this.sub.length}, ss: ${this.ss}`)
+            }
             // i is somewhere on the left-hand empty space (ie past)
             return this.ss - (t0 - t) / this.tf
         }
         else if (t > tN) {
             // i is somewhere on the right-hand empty space (ie future)
             const last_candle_index = this.sub.length - 1
+            if (ishead) {
+                window.console.log(`t2i(): t=${t} > tN=${tN}`)
+                window.console.log(`t2i(): last_cand_idx: ${last_candle_index}, sub-len: ${this.sub.length}, ss: ${this.ss}`)
+            }
             return this.ss + last_candle_index - (tN - t) / this.tf
         }
 
         try {
             // Linear Interpolation
             const [nextlo, nexthi] = Utils.fast_nearest(this.sub, t)
+            window.console.log(`t2i(): nextlo: ${nextlo}, nexthi: ${nexthi}, ss: ${this.ss}`)
             const tk = this.sub[nextlo][0]
             const tk2 = this.sub[nexthi][0]
             const k = (t - tk) / (tk2 - tk)
-            return this.ss + nextlo + k * (nexthi - nextlo)
+            // return this.ss + nextlo + k * (nexthi - nextlo)
+            const result =  this.ss + nextlo + k * (nexthi - nextlo)
+            window.console.log(`t2i(${t}) result = ${result}`)
+            return result
         } catch(e) { }
 
         return undefined

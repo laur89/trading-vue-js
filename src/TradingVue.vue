@@ -24,6 +24,7 @@
             ref="chart"
             v-bind="chart_props"
             :tv_id="id"
+            :dc="data"
             :config="chart_config"
             @custom-event="on_custom_event"
             @range-changed="on_range_changed"
@@ -146,7 +147,7 @@ export default {
             type: Boolean,
             default: false
         },
-        data: {
+        data: {  // note this might be DC instance
             type: Object,
             required: true
         },
@@ -290,8 +291,9 @@ export default {
         goto(t) {
             // TODO: limit goto & setRange (out of data error)
             if (this.chart_props.ib) {
-                if (typeof t === 'object') {
+                if (typeof t === 'object' && t !== null) {
                     t = t.e;  // TODO object argument not supported by gap_collapse = 3 yet
+                              // TODO 2: how come we're just ignoring t.c ??? (the buffer space constant)
                 }
 
                 t = this.$refs.chart.ti_map.gt2i(t, this.$refs.chart.ohlcv)

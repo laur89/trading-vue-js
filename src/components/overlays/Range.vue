@@ -76,7 +76,7 @@ export default {
         // indicator (let's say EMA),
         // just create a new overlay with the same type:
         // e.g. use_for() { return ['EMA'] }.
-        use_for() { return ['Range', 'RSI'] },
+        use_for() { return ['Range', 'RSI', 'ROC'] },
 
         // Colors for the legend, should have the
         // same dimention as a data point (excl. timestamp)
