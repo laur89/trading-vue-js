@@ -75,6 +75,7 @@ class CursorUpdater {
 
         let xs;
         switch (this.comp.$props.gap_collapse) {
+            // TODO: should add a special case for as-upstream functionality?
             case 2:
                 xs = data.map((_, i) => (grid.startx - grid.px_step * i) /*+ 0.5*/);  // should we -0.5 instead?
                 break;

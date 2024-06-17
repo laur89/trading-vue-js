@@ -111,5 +111,5 @@ export default {
     ChartConfig: ChartConfig,
     map_unit: MAP_UNIT,
     IB_TF_WARN,
-    WKD_GAP_DURATION: HOUR * 36,  // minimum data gap to qualify as weekend gap; only used in TODO which gap_collapse mode?
+    WKD_GAP_DURATION: HOUR * 36,  // minimum data gap to qualify as weekend gap; only used in gap_collapse=1 mode
 }

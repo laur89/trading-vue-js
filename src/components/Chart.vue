@@ -131,7 +131,7 @@ export default {
             const tf = Utils.parse_tf(this.forced_tf)
             if (this.ohlcv.length < 2 && !tf) return
             this.interval_ms = tf || Utils.detect_interval(this.ohlcv)
-            this.interval = this.$props.gap_collapse === 3 ? 1 : this.interval_ms  // TODO!! good 'ol this.$props.ib vs gaps_collapse===3
+            this.interval = this.$props.ib ? 1 : this.interval_ms  // TODO!! good 'ol this.$props.ib vs gaps_collapse===3
 
             Utils.warn(
                 () => this.$props.ib && !this.chart.tf,  // TODO!! good 'ol this.$props.ib vs gaps_collapse===3
@@ -216,10 +216,11 @@ export default {
          * that fit within our new range, and calls {@code range_changed()} function
          * with redefined range parameters.
          *
-         * @param {number|array<number>|object} movement  either a number stating the timestamp where our end (ie
+         * @param {number|array<number>|object} movement  either a number stating the timestamp|index where our end (ie
          *                               right-hand side) should be placed, or array of two elements:
          *                               [start-delta-in-ms, end-delta-in-ms], ie array defining how much
          *                               and in which direction our start & end points should be shifted.
+         *                               TODO: document and support in downstream logic also Object type!
          * @returns {array<candle>} array of main chart candles that fit within our newly defined range.
          */
         subset(movement = [0, 0]) {
@@ -229,6 +230,7 @@ export default {
             //    // no movement, return previously stored sub:
             //    return this.sub
             ///}
+            this.ti_map = new TI()
 
             switch (this.$props.gap_collapse) {
                 case 1: {
@@ -287,6 +289,7 @@ export default {
 
                     //console.log(`start: ${new Date(start)}, end: ${new Date(end)}`)
 
+                    this.ti_map.init(this, data)
                     return data;
                 }
                 case 3: {  // == IB mode, ie index-based mode; TODO: is this used _only_ with renko data?
@@ -296,14 +299,15 @@ export default {
                         movement
                     );
 
-                    if (Array.isArray(data) && data.length !== 0) {
-                        this.sub_start = start_index;
-                        this.sub_start_i = data[0][6];  // TODO: '6' needs to be parametrized; actually should already be under incoming data settings, under... a key
-                        this.ti_map = new TI(this, data);
-                        data = this.ti_map.sub_i.reverse();  // note here's where we reverse the dataset in gap_collapse=3 mode!
-                    } else {
-                        return [];
+                    if (data.length === 0) {
+                    //if (!Array.isArray(data) || data.length === 0) {
+                      return [];
                     }
+
+                    this.sub_start = start_index;
+                    this.sub_start_i = data[0][this.chart.settings.orderIndex || 0];
+                    this.ti_map.init(this, data)
+                    data = this.ti_map.sub_i.reverse();  // note here's where we reverse the dataset in gap_collapse=3 mode!
 
                     // ! note no gaps in IB / gap_collapse=3 mode !
                     const range_changed = this.range.start !== start || this.range.end !== end;
@@ -343,78 +347,108 @@ export default {
                 gap_collapse: this.$props.gap_collapse,
             }
         },
-        overlay_subset_ORIG_UPSTREAM_premerge(source, side) {
-            return source.map((d, i) => {
-                let res = Utils.fast_filter(
-                    d.data, this.ti_map.i2t_mode(
-                        this.range[0] - this.interval,
-                        d.indexSrc
-                    ),
-                    this.ti_map.i2t_mode(this.range[1], d.indexSrc)
-                )
-                return {
-                    type: d.type,
-                    name: Utils.format_name(d),
-                    data: this.ti_map.parse(res[0] || [], d.indexSrc || 'map'),
-                    settings: d.settings || this.settings_ov,
-                    grid: d.grid || {},
-                    tf: Utils.parse_tf(d.tf),
-                    i0: res[1],
-                    loading: d.loading,
-                    last: (this.last_values[side] || [])[i]
-                }
 
-            })
-        },
+      overlay_subset__upstream_logic(d, i, side) {
+        let res = Utils.fast_filter(
+            d.data, this.ti_map.i2t_mode(
+                this.range[0] - this.interval,
+                d.indexSrc
+            ),
+            this.ti_map.i2t_mode(this.range[1], d.indexSrc)
+        )
+        return {
+          type: d.type,
+          name: Utils.format_name(d),
+          data: this.ti_map.parse(res[0] || [], d.indexSrc || 'map'),
+          settings: d.settings || this.settings_ov,
+          grid: d.grid || {},
+          tf: Utils.parse_tf(d.tf),
+          i0: res[1],
+          loading: d.loading,
+          last: (this.last_values[side] || [])[i]
+        }
+      },
 
-        /**
-         * TODO!! unconfirmed... upstream had load of changes we don't quite understand.
-         *        more likely than not will need thinking and rework
-         * -------------
-         * Get excerpt from given {@code source} (eg onchart/offchart)
-         * candles for current {@code this.range}
-         */
+      overlay_subset__our_logic__tried_consolidating_with_upstream(d ,i) {
+        let res = Utils.fast_filter(
+            d.data, this.ti_map.i2t_mode(
+                this.range[0] - this.interval,
+                d.indexSrc
+            ),
+            this.ti_map.i2t_mode(this.range[1], d.indexSrc)
+        )
+        return {
+          type: d.type,
+          name: Utils.format_name(d),
+          data: this.ti_map.parse(res[0] || [], d.indexSrc || 'map'),
+          settings: d.settings || this.settings_ov,
+          grid: d.grid || {},
+          tf: Utils.parse_tf(d.tf),
+          i0: res[1],
+          loading: d.loading,
+          last: (this.last_values[side] || [])[i]
+        }
+      },
+
+      /**
+       * Get excerpt from given {@code source} (eg onchart/offchart)
+       * candles for current {@code this.range}
+       */
+      overlay_subset__our_logic(d, i, side) {
+          let data, i0;
+          const tf = Utils.parse_tf(d.tf)
+
+          if (this.$props.ib) {
+            [data, i0] = Utils.fast_filter(
+                d.data,
+                // TODO!!: why are we calling i2t() here? even in gaps=3 mode we're still sending timestamps w/ data?!
+                this.ti_map.i2t(this.range.start - this.interval),
+                this.ti_map.i2t(this.range.end)
+            // this.range.start - (tf || this.interval),
+            //     this.range.end  //+ (tf || this.interval)  TODO: +interval or not?
+                //this.ti_map.i2t(this.range.start - (d.tf || this.interval)),
+                //this.ti_map.i2t(this.range.end + (d.tf || this.interval))
+            );
+
+            // TODO: is parse needed or not?:
+            // data = this.ti_map.parse(data, 'map') // note 'map' is the default parse mode
+          } else {
+            [data, i0] = Utils.fast_filter(
+                d.data,
+                this.range.start - (tf || this.interval),
+                this.range.end + (tf || this.interval)
+            );
+          }
+
+          return {
+            type: d.type,
+            name: d.name,
+            data,
+            settings: d.settings || this.settings_ov,
+            grid: d.grid || {},
+            tf,
+            i0,
+            loading: d.loading,  // TODO!!: how/where's this used?
+            last: (this.last_values[side] || [])[i]  // TODO!!: how/where's this used?
+          }
+      },
+
+      /**
+       * TODO!! unconfirmed... upstream had load of changes we don't quite understand.
+       *        more likely than not will need thinking and rework
+       * -------------
+       * Get excerpt from given {@code source} (eg onchart/offchart)
+       * candles for current {@code this.range}
+       * @param source  either onchart or offchart data boj
+       * @param side on/offchart
+       * @returns {*}
+       */
         overlay_subset(source, side) {
             return source.map((d, i) => {
-                let data;
-                if (this.$props.gap_collapse === 3) {  // TODO!! good ol ib vs gap_collapse!
-                    // data = this.ti_map.parse(Utils.fast_filter(
-                    //     d.data,
-                    //     this.ti_map.i2t(this.range.start - this.interval),
-                    //     this.ti_map.i2t(this.range.end)
-                    //     //this.ti_map.i2t(this.range.start - (d.tf || this.interval)),
-                    //     //this.ti_map.i2t(this.range.end + (d.tf || this.interval))
-                    // ));
-                    // TODO!!: this block here has been modified to suite our range datatype,
-                    // but what about we using d.indexSrc and that new i2t_mode() fun???
-                    const res = Utils.fast_filter(
-                        d.data, this.ti_map.i2t_mode(
-                            this.range.start - this.interval,
-                            d.indexSrc
-                        ),
-                        this.ti_map.i2t_mode(this.range.end, d.indexSrc)
-                    )
-                    data = this.ti_map.parse(res[0] || [], d.indexSrc || 'map')
-                } else {
-                    data = Utils.fast_filter(
-                        d.data,
-                        this.range.start - (d.tf || this.interval),
-                        this.range.end + (d.tf || this.interval)
-                    );
-                }
-
-                return {
-                    type: d.type,
-                    name: Utils.format_name(d),
-                    data,
-                    //data: this.ti_map.parse(res[0] || [], d.indexSrc || 'map'),     <-- upstream
-                    settings: d.settings || this.settings_ov,
-                    grid: d.grid || {},
-                    tf: d.tf, // upstream has: Utils.parse_tf(d.tf)
-                    i0: data[1],  // TODO!! does this work even for gap_collapse!=3 mode???
-                    loading: d.loading,
-                    last: (this.last_values[side] || [])[i]  // TODO!!: last - do we need to reverse something for our implementation?
-                }
+                // return this.ib ?
+                //   this.overlay_subset__upstream_logic(d, i, side) :
+                //   this.overlay_subset__our_logic(d, i, side)
+              return this.overlay_subset__our_logic(d, i, side)
             });
         },
 
@@ -470,11 +504,11 @@ export default {
             this.last_candle = d ? d[d.length - 1] : []  // TODO!!: upstream defaults to undefined instead of []
             this.last_values = { onchart: [], offchart: [] }
             this.onchart.forEach((x, i) => {
-                let d = x.data || []
+                const d = x.data || []
                 this.last_values.onchart[i] = d[d.length - 1]
             })
             this.offchart.forEach((x, i) => {
-                let d = x.data || []
+                const d = x.data || []
                 this.last_values.offchart[i] = d[d.length - 1]
             })
         },
@@ -600,11 +634,11 @@ export default {
 
             // Meta data
             last_candle: [],
-            last_values: {},
-            sub_start: undefined,
+            last_values: {},  // contains 'onchart'- & 'offchart'-keyed arrays
+            sub_start: undefined, // used by ti_mapper
             activated: false,
 
-            sub_start_i: null,
+            sub_start_i: null,  // start index element value; only used in gap_collapse=3;
             ti_map: null,
             dc_legend_displayed: false,  // whether DC legend should be shown
 
@@ -625,7 +659,7 @@ export default {
                 this.range.start = this.ti_map.i2t(this.range.start)
                 this.range.end = this.ti_map.i2t(this.range.end)
                 this.range.delta = this.range.end - this.range.start
-                this.ti_map = null
+                // this.ti_map = null  // TODO: do we have to nullify it? nova2 had it
                 //Utils.overwrite(this.range, [t1, t2])
                 this.interval = this.interval_ms
             } else {
@@ -650,8 +684,9 @@ export default {
         },
         data: {
             handler: function(n, p) {
+                // TODO: what is this block here about?
                 if (this.$props.gap_collapse === 3 && this.sub_start_i !== null) {
-                    const ia = new IndexedArray(n.chart.data, '6');  // TODO: '6' needs to be parametrized
+                    const ia = new IndexedArray(n.chart.data, `${n.chart.settings.orderIndex}`);
                     ia.fetch(this.sub_start_i);  // move cursor to current, pre-move end
                     // TODO: issue if new data is fetched when gap is not yet visible - we lose all candles on reload
                     if (ia.cursor !== this.sub_start) {
@@ -660,7 +695,7 @@ export default {
                         this.range.end += delta;
                         this.sub_start = ia.cursor;  // TODO: why couldn't/shouldn't this be overridden?
                     }
-                    // TODO: what to do if ia.cursor is null? is it possible?
+                    // TODO: what to do if ia.cursor is null? that would happen if this.sub_start_i exact value wouldn't exist in n.chart.data; think that'll never happen tho, right?
                 }
 
 

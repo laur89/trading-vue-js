@@ -205,7 +205,7 @@ export default {
                 font: this.font_comp,
                 buttons: this.$props.legendButtons,
                 toolbar: this.$props.toolbar,
-                //ib: this.$props.indexBased || this.index_based || false, // TODO!!: is it ok to remove this prop?
+                ib: this.$props.indexBased || this.index_based || false, // TODO!!: ib should be reserved for as-upstream functionality only
                 gap_collapse: this.get_effective_collapse_mode,
                 colors: Object.assign({}, this.$props.colors ||
                     this.colorpack),
@@ -237,7 +237,7 @@ export default {
             const base = this.$props.data
             if (base.chart) {
                 return base.chart.indexBased
-            }
+            }// TODO: remove the old data-type support form here
             else if (base.data) {
                 return base.data.chart.indexBased
             }
@@ -256,7 +256,6 @@ export default {
         },
         get_effective_collapse_mode() {
             const base = this.$props.data
-            // TODO: remove this indexBased nonsense & only use gap_collapse?
             if (this.$props.indexBased || (base.chart && base.chart.indexBased) || (base.data && base.data.chart.indexBased)) {
                 return 3;
             }
@@ -290,13 +289,12 @@ export default {
         },
         goto(t) {
             // TODO: limit goto & setRange (out of data error)
-            if (this.chart_props.gap_collapse === 3) {
+            if (this.chart_props.ib) {
                 if (typeof t === 'object') {
                     t = t.e;  // TODO object argument not supported by gap_collapse = 3 yet
                 }
 
-                const ti_map = this.$refs.chart.ti_map;
-                t = ti_map.gt2i(t, this.$refs.chart.ohlcv)
+                t = this.$refs.chart.ti_map.gt2i(t, this.$refs.chart.ohlcv)
             }
             this.$refs.chart.goto(t)
         },
@@ -304,7 +302,7 @@ export default {
             this.$refs.chart.goto([t, t])
         },
         setRange(t1, t2) {
-            if (this.chart_props.gap_collapse === 3) {
+            if (this.chart_props.ib) {
                 const ti_map = this.$refs.chart.ti_map
                 const ohlcv = this.$refs.chart.ohlcv
                 t1 = ti_map.gt2i(t1, ohlcv)
@@ -313,7 +311,7 @@ export default {
             this.$refs.chart.setRange(t1, t2)
         },
         getRange() {
-            if (this.chart_props.gap_collapse === 3) {
+            if (this.chart_props.ib) {
                 const ti_map = this.$refs.chart.ti_map
                 // Time range => index range
                 return this.$refs.chart.range
@@ -324,7 +322,7 @@ export default {
         getCursor() {
 
             const cursor = this.$refs.chart.cursor
-            if (this.chart_props.gap_collapse === 3) {
+            if (this.chart_props.ib) {
                 const ti_map = this.$refs.chart.ti_map
                 const copy = Object.assign({}, cursor)
                 copy.i = copy.t

@@ -59,14 +59,14 @@ export default {
             let st = this.$props.config.TB_B_STYLE
             return {
                 'width': `${w}px`,
-                'height': `${this.$props.height}px`, // TODO: upstream had `${this.$props.height-3}px`, ie -3
+                'height': `${this.$props.height-3}px`, // without -3 the chart won't fit and scrollbars appear
                 'background-color': cb,
                 'border-right': `${b}px ${st} ${brd}`
             }
         },
         groups() {
             let arr = []
-            for (var tool of this.data.tools || []) {
+            for (let tool of this.data.tools || []) {
                 if (!tool.group) {
                     arr.push(tool)
                     continue

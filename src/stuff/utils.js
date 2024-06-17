@@ -54,7 +54,7 @@ export default {
      *
      * @param {Number} x
      * @param {Number[]} array
-     * @returns {number[]}
+     * @returns [index, value]
      */
     nearest_a(x, array) {
         let dist = Infinity
@@ -156,16 +156,23 @@ export default {
     },
 
     // Fast filter. Really fast, like 10X
-    // TODO!!: note during nova2 days, this method retunred different dimension, + we had pretty heavy customisation
+    // TODO!!: note during nova2 days, this method returned different dimension, + we had pretty heavy customisation;
     //         guess will have to look up the callers and what they do w/ data
+
+    /**
+     *
+     * @param arr
+     * @param t1
+     * @param t2
+     * @returns {[[arr-slice-for-t1-t2], index-of-first-element-in-slice}
+     */
     fast_filter(arr, t1, t2) {
         if (arr.length === 0) return [arr, undefined]
         try {
-            // TODO!!!!!!!!: nova2 used to reverse!!:  return new [IndexedArray(arr, '0').getRange(t1, t2).reverse()];
-            let ia = new IndexedArray(arr, '0')
-            let res = ia.getRange(t1, t2)
-            let i0 = ia.valpos[t1].next
-            return [res, i0]
+            const ia = new IndexedArray(arr, '0')
+            const res = ia.getRange(t1, t2).reverse() // TODO!!: reverse valid here?
+            const i0 = ia.valpos[t1].next  // TODO!!: valpos[any].next (or .prev for that matter) would be null if exact time of <any> exists in input {@code arr}!!! is that ok???
+            return [res, i0]  // i0 = index of res' first element in input {@code arr}
         } catch(e) {
             // Something wrong with fancy slice lib
             // Fast fix: fallback to filter
@@ -204,7 +211,8 @@ export default {
             if (i1 < 0) i1 = 0;
             i2 = Math.floor(end + 1);  // TODO: always add 1?
         } else {  // typeof movement == number|object // TODO: object usage not supported, not yet anyway!
-            end = range.end + movement;
+            // end = range.end + movement;
+            end = movement;  // TODO!!: ok to set end to movement, right? as if movement=number, then it's end timestamp/index, not relative movement
             start = end - range.delta;
             i2 = Math.floor(end + 1);  // TODO: always add 1?
             i1 = Math.floor(i2 - range.delta);
@@ -222,7 +230,7 @@ export default {
 
     // Nearest indexes (left and right)
     fast_nearest(arr, t1) {
-        const ia = new IndexedArray(arr, '0').fetch(t1)  // TODO confirm fetch() still returns ia instance reference
+        const ia = new IndexedArray(arr, '0').fetch(t1)
         return [ia.nextlow, ia.nexthigh]
     },
 
@@ -236,6 +244,7 @@ export default {
      *     data: array of candles from {@code arr} that fall into start-end range
      * }
      *
+     * TODO: {@code movement} param may be Object, as stated by Chart.subset(); need to add Object support here!
      * @param arr raw candle array to grab a subset from
      * @param range our range object defining _current_ range (that will be modified after we're called)
      * @param {number|array<number>} movement  either a number stating the timestamp where our end (ie
@@ -636,8 +645,8 @@ export default {
     index_shift(sub, data) {
 
         // Find the second timestamp (by value)
-        if (!data.length) return 0
-        let first = data[0][0]
+        if (data.length === 0) return 0
+        const first = data[0][0]
         let second, i
 
         for (i = 1; i < data.length; i++) {
@@ -768,7 +777,6 @@ export default {
 
 
 
-
     // sanitize function argument;
     // return the given arg if it's function, else null
     get_fun_or_null(f) {
@@ -790,10 +798,11 @@ export default {
     },
 
     /**
+     * Map given timestamp {@code t} to x-coordinate in our current view.
+     *
      * NOTE: custom method
      *
-     * Map given timestamp {@code t} to x-coordinate in our current view.
-     * @param t
+     * @param t time; note in indexed mode, this will actually be an index
      * @param range
      * @param spacex  full width (px) of our current view where candles can be drawn.
      * @returns {number} x coord corresponding to input time.

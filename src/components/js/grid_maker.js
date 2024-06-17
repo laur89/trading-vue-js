@@ -47,7 +47,7 @@ function GridMaker(id, params, master_grid = null) {
     if (lm !== null && typeof lm === 'object' && Object.keys(lm).length !== 0) {
         // The first y_range() determines the range
         y_range_fn = Object.values(lm)
-            .find(x => x.hasOwnProperty('y_range'))
+            .find(x => x.hasOwnProperty('y_range') && typeof x.y_range === 'function')
         y_range_fn = y_range_fn === undefined ? null : y_range_fn.y_range
         // TODO: what is y_range for? to customize the range for our offchart?
     }
@@ -61,7 +61,7 @@ function GridMaker(id, params, master_grid = null) {
         } else {
             let hi, lo, exp;  // H & L price extremes
 
-            if (!master_grid) {  // ie we _are_ the master grid
+            if (master_grid === null) {  // ie we _are_ the master grid
                 // $ candlestick range
                 if (y_range_fn !== null) {
                     [hi, lo] = y_range_fn(hi, lo)  // TODO!!: what's going on here, hi-lo are passed to y_range_fn, but they should be undefined at this point!
@@ -195,9 +195,9 @@ function GridMaker(id, params, master_grid = null) {
     }
 
     /**
-     * Calculates some properties, such as
-     * {@code px_step},
-     * {@code startx},
+     * Calculates some _important_ properties, such as
+     * {@code px_step},  // !!
+     * {@code startx},  // !!
      * {@code A},
      * {@code B}
      */
@@ -215,6 +215,8 @@ function GridMaker(id, params, master_grid = null) {
         // px / time ratio
         const r = self.spacex / range.delta  // ms per 1px
 
+
+        // note our custom logic builds grid right-to-left, not left-to-right:
         switch ($p.gap_collapse) {
             case 2:
                 self.startx = self.spacex - range.end_remainder * r;
@@ -237,10 +239,15 @@ function GridMaker(id, params, master_grid = null) {
 
     }
 
-    // Select nearest good-looking t step (m is target scale)
+    /**
+     * Select nearest good-looking t step (m is target scale).
+     * Think this is the _time_ step at which vertical lines are drawn.
+     * @param delta_range ms
+     * @returns {number}
+     */
     function time_step(delta_range) {
-        // TODO!!: do we want to keep gap_collapse=3 check? upstream has (if ti_map.ib) check instead; we should.... unify them somehow!
-        const k = $p.gap_collapse === 3 ? 60000 : 1
+        // const k = $p.gap_collapse === 3 ? 60000 : 1
+        const k = ti_map.ib ? 60000 : 1  // TODO!! another ib vs gap-collapse=3 check
         const m = delta_range * k * ($p.config.GRIDX / $p.width)
 
         return Utils.nearest_a(m, TIMESCALES)[1] / k
@@ -308,7 +315,7 @@ function GridMaker(id, params, master_grid = null) {
 
         // If this is a subgrid, no need to calc a timeline,
         // we just borrow it from the master_grid:
-        if (!master_grid) {
+        if (master_grid === null) {
 
             self.t_step = time_step(range.delta)
             self.xs = []
@@ -322,10 +329,10 @@ function GridMaker(id, params, master_grid = null) {
             let m0 = Utils.get_month(t0)*/
 
             for (let i = 0; i < sub.length; i++) {
-                const p = sub[i]
-                let prev = sub[i-1] || []
-                let prev_xs = self.xs[self.xs.length - 1] || [0,[]] // TODO!!: default value is missing 3rd unit (the rank?) - now self.xs has 3 dimensions right?
-                //let x = Math.floor((p[0] - range[0]) * r) // upstream ver; TODO!! maybe Utils.t2screen() is no longer valid as some mapping is done in insert_line()?
+                const p = sub[i] // candle/data-point
+                let prev = sub[i-1] || []  // previous candle/data-point
+                let prev_xs = self.xs[self.xs.length - 1] || [0, []] // TODO!!: default value is missing 3rd unit (the rank?) - now self.xs has 3 dimensions right?
+                //let x = Math.floor((p[0] - range[0]) * r) // upstream ver;
                 let x = Utils.t2screen(p[0], range, self.spacex)
 
                 insert_line(prev, p, x)
@@ -361,11 +368,18 @@ function GridMaker(id, params, master_grid = null) {
         }
     }
 
+    /**
+     * inserts the verticla line?
+     * @param prev
+     * @param p
+     * @param x
+     * @param m0
+     */
     function insert_line(prev, p, x, m0) {
 
         // TODO!!: are these gap_collapse and/or ti_map.ib checks ok here? they want unifying!:
-        let prev_t = (ti_map.ib || $p.gap_collapse === 3) ? ti_map.i2t(prev[0]) : prev[0]
-        let p_t = (ti_map.ib || $p.gap_collapse === 3) ? ti_map.i2t(p[0]) : p[0]
+        let prev_t = ti_map.ib ? ti_map.i2t(prev[0]) : prev[0]
+        let p_t = ti_map.ib ? ti_map.i2t(p[0]) : p[0]
 
         if (ti_map.tf < DAY) {
             prev_t += timezone * HOUR

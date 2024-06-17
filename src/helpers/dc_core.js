@@ -189,7 +189,7 @@ export default class DCCore extends DCEvents {
 
             let anchorHead = head;
             let anchorTail = tail;
-            if (this.tv.$refs.chart.ti_map !== null) {
+            if (this.tv.$refs.chart.ib) {
                 anchorHead = this.tv.$refs.chart.ti_map.i2t(anchorHead);
                 anchorTail = this.tv.$refs.chart.ti_map.i2t(anchorTail);
             }
@@ -199,7 +199,7 @@ export default class DCCore extends DCEvents {
             ]
         } else {  // need to pull data only for either end
             let anchorTime = fetchDirection === 1 ? range.start : range.end;
-            if (this.tv.$refs.chart.ti_map !== null) {
+            if (this.tv.$refs.chart.ib) {
                 anchorTime = this.tv.$refs.chart.ti_map.i2t(anchorTime);
             }
 
@@ -330,7 +330,7 @@ export default class DCCore extends DCEvents {
     _getTail = () => {
         const d = this.data.chart.data;
         const tail = d.length === 0 ? -1 : d[d.length-1][0];  // note tv's chart.vue keeps track of last cnadle as well
-        if (this.tv.$refs.chart.ti_map !== null) {
+        if (this.tv.$refs.chart.ib) {
             return this.tv.$refs.chart.ti_map.t2i(tail);
         }
 
@@ -340,7 +340,7 @@ export default class DCCore extends DCEvents {
     _getHead = () => {
         const d = this.data.chart.data;
         const head = d.length === 0 ? -1 : d[0][0];
-        if (this.tv.$refs.chart.ti_map !== null) {
+        if (this.tv.$refs.chart.ib) {
             return this.tv.$refs.chart.ti_map.t2i(head);
         }
 
@@ -503,7 +503,7 @@ export default class DCCore extends DCEvents {
                 k === 'candle' || k === 't') {
                 continue
             }
-            else if (k.includes('datasets.')) {
+            else if (k.includes('datasets.')) {  // TODO: could we use startsWith() instead?
                 this.agg.push(k, data[k], tf)
                 continue
             }

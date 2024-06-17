@@ -121,7 +121,7 @@ function new_interval(layout, $p, sub) {
     // Subset interval against main interval
     let interval2, ratio
 
-    if ($p.gap_collapse !== 3) {  // TODO!!: another (!layout.ti_map.ib vs gap_collapse!==3) check!!!
+    if (!layout.ti_map.ib) {  // TODO!!: another (!layout.ti_map.ib vs gap_collapse!==3) check!!!
         interval2 = $p.tf || Utils.detect_interval(sub)
         ratio = interval2 / $p.interval
     } else {

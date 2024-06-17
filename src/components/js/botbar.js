@@ -107,7 +107,7 @@ export default class Botbar {
      */
     format_date(p, next_candle) {
         let t = p[1][0]
-        if (this.$p.gap_collapse === 3) t = this.grid_0.ti_map.i2t(t)  // TODO note upstream has no check for .i2t(t), function itself is protected!
+        t = this.grid_0.ti_map.i2t(t)
         let ti = this.$p.layout.grids[0].ti_map.tf
         // Enable timezones only for tf < 1D
         let k = ti < DAY ? 1 : 0
@@ -148,7 +148,7 @@ export default class Botbar {
 
     format_cursor_x() {
         let t = this.$p.cursor.t
-        if (this.$p.gap_collapse === 3) t = this.grid_0.ti_map.i2t(t)
+        t = this.grid_0.ti_map.i2t(t)
         //let ti = this.$p.interval
         let ti = this.$p.layout.grids[0].ti_map.tf
         // Enable timezones only for tf < 1D

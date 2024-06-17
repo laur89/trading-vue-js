@@ -5,7 +5,8 @@ import math from '../../stuff/math.js'
 
 export default function(self, range) {
 
-    const ib = self.gap_collapse === 3;  // TODO!! another self.ti_map.ib vs gap_collapse===3 check!!
+    // const ib = self.gap_collapse === 3;  // TODO!! another self.ti_map.ib vs gap_collapse===3 check!!
+    const ib = !!self.ti_map.ib // TODO!! another self.ti_map.ib vs gap_collapse===3 check!!
     const r = self.spacex / range.delta;
     const ls = !!self.grid.logScale
 

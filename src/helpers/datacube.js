@@ -40,7 +40,7 @@ export default class DataCube extends DCCore {
             fetchTriggerMargin: 400  // how many datapoints before the in-memory limit should fetch be triggered; keep it smaller than fetchLookAhead
         }
 
-        let def_sett = {
+        const def_sett = {
             aggregation: 100,       // Update aggregation interval
             script_depth: 0,        // 0 === Exec on all data
             auto_scroll: true,      // Auto scroll to a new candle
@@ -206,7 +206,6 @@ export default class DataCube extends DCCore {
 
         this.merge(query + '.settings', { display: false })
     }
-
 
 
 

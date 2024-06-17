@@ -161,7 +161,7 @@ function Layout(_chart) {
     const gms = [new GridMaker(0, specs)]  // init w/ master grid_maker
 
     // Sub grids
-    for (let [i, { data, grid }] of offsub.entries()) {
+    for (const [i, { data, grid }] of offsub.entries()) {
         specs.sub = data
         specs.height = heights[i + 1]
         specs.y_t = y_ts[i + 1]
