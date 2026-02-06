@@ -42,7 +42,7 @@ export default class DataCube extends DCCore {
             startTimestamp: -1,  // total chart starting timestamp
             endTimestamp: -1,  // total chart end timestamp
 
-            maxDatapoints: 10000,  // max number of datapoints allowed in memory; when exceeded, we start truncating; eg 48h is 2880min
+            maxDatapoints: 5000,  // max number of datapoints allowed in memory; when exceeded, we start truncating; eg 48h is 2880min
             // maxDatapoints: 2000,  // max number of datapoints allowed in memory; when exceeded, we start truncating; eg 48h is 2880min
             fetchLookAhead: 1000,  // how many datapoints should we fetch ahead as a buffer
             fetchTriggerMargin: 400  // how many datapoints before the in-memory limit should fetch be triggered; keep it smaller than fetchLookAhead

@@ -18,7 +18,7 @@ export default {
             // TODO: volume average
             // TODO: Y-axis scaling
 
-            for (var v of layout_vol(this)) {
+            for (const v of layout_vol(this)) {
                 new Volbar(this, ctx, v)
             }
 
